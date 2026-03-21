@@ -10,6 +10,8 @@ import (
 	"frrenzy/urlshortener/internal/config"
 	"frrenzy/urlshortener/internal/repository"
 	"frrenzy/urlshortener/internal/service"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type handler struct {
@@ -17,12 +19,6 @@ type handler struct {
 }
 
 func (s handler) createShort(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("wrong method"))
-		return
-	}
-
 	urlBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -49,15 +45,7 @@ func (s handler) createShort(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s handler) redirectToOriginal(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("wrong method"))
-		return
-	}
-
-	short := r.PathValue("id")
-	fmt.Println("short id = ", short)
-	fmt.Println("request path = ", r.URL.Path)
+	short := chi.URLParam(r, "id")
 	if short == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("no short URL provided"))
@@ -75,15 +63,16 @@ func (s handler) redirectToOriginal(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
-func NewRouter() *http.ServeMux {
+func NewRouter() *chi.Mux {
 	storage := repository.NewMapStorage()
-	mainRouter := handler{
+	handlers := handler{
 		urlService: service.NewShortenerService(storage),
 	}
 
-	handler := http.NewServeMux()
-	handler.HandleFunc(`/{id}`, mainRouter.redirectToOriginal)
-	handler.HandleFunc(`/`, mainRouter.createShort)
+	router := chi.NewRouter()
 
-	return handler
+	router.Get(`/{id}`, handlers.redirectToOriginal)
+	router.Post(`/`, handlers.createShort)
+
+	return router
 }

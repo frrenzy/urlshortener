@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,13 +11,22 @@ import (
 	"frrenzy/urlshortener/internal/repository"
 	"frrenzy/urlshortener/internal/service"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_handlers_createShort(t *testing.T) {
-	handlers := handler{
-		urlService: service.NewShortenerService(repository.NewMapStorage()),
-	}
+	router := NewRouter()
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	client := resty.NewWithClient(&http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return nil
+		},
+	}).SetBaseURL(server.URL)
 
 	tests := []struct {
 		name         string
@@ -34,26 +44,22 @@ func Test_handlers_createShort(t *testing.T) {
 		{
 			name:         "method get",
 			method:       http.MethodGet,
-			expectedCode: http.StatusBadRequest,
-			errorBody:    "wrong method",
+			expectedCode: http.StatusMethodNotAllowed,
 		},
 		{
 			name:         "method put",
 			method:       http.MethodPut,
-			expectedCode: http.StatusBadRequest,
-			errorBody:    "wrong method",
+			expectedCode: http.StatusMethodNotAllowed,
 		},
 		{
 			name:         "method patch",
 			method:       http.MethodPatch,
-			expectedCode: http.StatusBadRequest,
-			errorBody:    "wrong method",
+			expectedCode: http.StatusMethodNotAllowed,
 		},
 		{
 			name:         "method delete",
 			method:       http.MethodDelete,
-			expectedCode: http.StatusBadRequest,
-			errorBody:    "wrong method",
+			expectedCode: http.StatusMethodNotAllowed,
 		},
 		{
 			name:         "empty request body",
@@ -72,16 +78,20 @@ func Test_handlers_createShort(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			r := httptest.NewRequest(test.method, "/", strings.NewReader(test.body))
-			w := httptest.NewRecorder()
+			request := client.R().SetBody(test.body)
+			request.Method = test.method
+			request.URL = "/"
+			response, err := request.Send()
 
-			handlers.createShort(w, r)
+			require.NoError(t, err, "request error")
 
-			assert.Equal(t, test.expectedCode, w.Code)
-			if test.expectedCode == http.StatusBadRequest {
-				assert.Equal(t, test.errorBody, w.Body.String())
-			} else {
-				assert.Equal(t, true, strings.HasPrefix(w.Body.String(), "http://localhost:8080/"))
+			assert.Equal(t, test.expectedCode, response.StatusCode())
+
+			switch test.expectedCode {
+			case http.StatusBadRequest:
+				assert.Equal(t, test.errorBody, response.String())
+			case http.StatusCreated:
+				assert.Equal(t, true, strings.HasPrefix(response.String(), "http://localhost:8080/"), "wrong response with short URL")
 			}
 		})
 	}
@@ -101,11 +111,21 @@ func Test_handlers_redirectToOriginal(t *testing.T) {
 	handlers := handler{
 		urlService: service.NewShortenerService(storage),
 	}
+	router := chi.NewRouter()
+	router.Get(`/{id}`, handlers.redirectToOriginal)
+
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	errorRedirect := errors.New("HTTP redirect blocked")
+	client := resty.New().SetBaseURL(server.URL).SetRedirectPolicy(resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
+		return errorRedirect
+	}))
 
 	tests := []struct {
 		name             string
 		method           string
-		shortId          string
+		shortID          string
 		expectedCode     int
 		expectedLocation string
 		errorBody        string
@@ -113,44 +133,41 @@ func Test_handlers_redirectToOriginal(t *testing.T) {
 		{
 			name:             "ok path",
 			method:           http.MethodGet,
-			shortId:          shortURL,
+			shortID:          shortURL,
 			expectedCode:     http.StatusTemporaryRedirect,
 			expectedLocation: originalURL.String(),
 		},
 		{
 			name:         "method post",
 			method:       http.MethodPost,
-			expectedCode: http.StatusBadRequest,
+			shortID:      shortURL,
+			expectedCode: http.StatusMethodNotAllowed,
 			errorBody:    "wrong method",
 		},
 		{
 			name:         "method put",
 			method:       http.MethodPut,
-			expectedCode: http.StatusBadRequest,
+			shortID:      shortURL,
+			expectedCode: http.StatusMethodNotAllowed,
 			errorBody:    "wrong method",
 		},
 		{
 			name:         "method patch",
 			method:       http.MethodPatch,
-			expectedCode: http.StatusBadRequest,
+			shortID:      shortURL,
+			expectedCode: http.StatusMethodNotAllowed,
 			errorBody:    "wrong method",
 		},
 		{
 			name:         "method delete",
 			method:       http.MethodDelete,
-			expectedCode: http.StatusBadRequest,
+			shortID:      shortURL,
+			expectedCode: http.StatusMethodNotAllowed,
 			errorBody:    "wrong method",
 		},
 		{
-			name:         "empty path",
-			shortId:      "",
-			method:       http.MethodGet,
-			expectedCode: http.StatusBadRequest,
-			errorBody:    "no short URL provided",
-		},
-		{
 			name:         "nonexistent path",
-			shortId:      "somepath",
+			shortID:      "somepath",
 			method:       http.MethodGet,
 			expectedCode: http.StatusBadRequest,
 			errorBody:    "no short URL found",
@@ -159,17 +176,21 @@ func Test_handlers_redirectToOriginal(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			r := httptest.NewRequest(test.method, "/{id}", nil)
-			r.SetPathValue("id", test.shortId)
-			w := httptest.NewRecorder()
+			request := client.R()
+			request.Method = test.method
+			request.URL = "/" + test.shortID
 
-			handlers.redirectToOriginal(w, r)
+			response, _ := request.Send()
 
-			assert.Equal(t, test.expectedCode, w.Code)
-			if test.expectedCode == http.StatusBadRequest {
-				assert.Equal(t, test.errorBody, w.Body.String())
-			} else {
-				assert.Equal(t, test.expectedLocation, w.Header().Get("Location"))
+			assert.Equal(t, test.expectedCode, response.StatusCode())
+
+			switch test.expectedCode {
+			case http.StatusBadRequest:
+				assert.Equal(t, test.errorBody, response.String())
+			case http.StatusTemporaryRedirect:
+				location, err := response.RawResponse.Location()
+				assert.NoError(t, err, "Location header should be present")
+				assert.Equal(t, test.expectedLocation, location.String())
 			}
 		})
 	}
