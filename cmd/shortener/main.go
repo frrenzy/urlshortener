@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
 
@@ -9,8 +10,10 @@ import (
 )
 
 func run() error {
-	fmt.Println("Server listening on localhost:8080")
-	return http.ListenAndServe(fmt.Sprintf(":%d", config.Port), handler.NewRouter())
+	flag.Parse()
+
+	fmt.Println("Server listening on ", config.ProgramFlags.ServerAddress)
+	return http.ListenAndServe(config.ProgramFlags.ServerAddress, handler.NewRouter())
 }
 
 func main() {

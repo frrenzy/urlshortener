@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"frrenzy/urlshortener/internal/config"
 	"frrenzy/urlshortener/internal/repository"
 	"frrenzy/urlshortener/internal/service"
 
@@ -91,7 +92,7 @@ func Test_handlers_createShort(t *testing.T) {
 			case http.StatusBadRequest:
 				assert.Equal(t, test.errorBody, response.String())
 			case http.StatusCreated:
-				assert.Equal(t, true, strings.HasPrefix(response.String(), "http://localhost:8080/"), "wrong response with short URL")
+				assert.Equal(t, true, strings.HasPrefix(response.String(), config.ProgramFlags.BaseAddress), "wrong response with short URL")
 			}
 		})
 	}

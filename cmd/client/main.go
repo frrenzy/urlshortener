@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,7 +13,9 @@ import (
 )
 
 func main() {
-	endpoint := fmt.Sprintf("http://localhost:%d/", config.Port)
+	flag.Parse()
+
+	endpoint := config.ProgramFlags.ServerAddress
 	// data := url.Values{}
 	client := &http.Client{}
 
