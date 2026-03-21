@@ -8,10 +8,21 @@ import (
 	"net/url"
 
 	"frrenzy/urlshortener/internal/config"
+	"frrenzy/urlshortener/internal/repository"
 	"frrenzy/urlshortener/internal/service"
 )
 
-func createShort(w http.ResponseWriter, r *http.Request) {
+type handler struct {
+	urlService service.ShortenerService
+}
+
+func (s handler) createShort(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("wrong method"))
+		return
+	}
+
 	urlBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -26,7 +37,7 @@ func createShort(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	short, err := service.CreateShortURL(*original)
+	short, err := s.urlService.CreateShortURL(*original)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("can not create short URL"))
@@ -37,15 +48,23 @@ func createShort(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "http://localhost:%d/%s", config.Port, short)
 }
 
-func redirectToOriginal(w http.ResponseWriter, r *http.Request) {
+func (s handler) redirectToOriginal(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("wrong method"))
+		return
+	}
+
 	short := r.PathValue("id")
+	fmt.Println("short id = ", short)
+	fmt.Println("request path = ", r.URL.Path)
 	if short == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("no short URL provided"))
 		return
 	}
 
-	original, err := service.GetOriginalURL(short)
+	original, err := s.urlService.GetOriginalURL(short)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("no short URL found"))
@@ -54,13 +73,17 @@ func redirectToOriginal(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Location", original.String())
 	w.WriteHeader(http.StatusTemporaryRedirect)
-	w.Write([]byte(""))
 }
 
-var MainHandler *http.ServeMux
+func NewRouter() *http.ServeMux {
+	storage := repository.NewMapStorage()
+	mainRouter := handler{
+		urlService: service.NewShortenerService(storage),
+	}
 
-func init() {
-	MainHandler = http.NewServeMux()
-	MainHandler.HandleFunc(`POST /`, createShort)
-	MainHandler.HandleFunc(`GET /{id}`, redirectToOriginal)
+	handler := http.NewServeMux()
+	handler.HandleFunc(`/{id}`, mainRouter.redirectToOriginal)
+	handler.HandleFunc(`/`, mainRouter.createShort)
+
+	return handler
 }

@@ -6,15 +6,17 @@ import (
 	"net/url"
 )
 
-var storage map[string]url.URL
-
-func Add(original url.URL, short string) bool {
-	storage[short] = original
-	return true
+type mapStorage struct {
+	Repository
+	storage map[string]url.URL
 }
 
-func Get(short string) (url.URL, error) {
-	original, exists := storage[short]
+func (s mapStorage) Add(original url.URL, short string) {
+	s.storage[short] = original
+}
+
+func (s mapStorage) Get(short string) (url.URL, error) {
+	original, exists := s.storage[short]
 	if !exists {
 		return url.URL{}, errors.New("not found")
 	}
@@ -22,6 +24,10 @@ func Get(short string) (url.URL, error) {
 	return original, nil
 }
 
-func init() {
-	storage = make(map[string]url.URL)
+func NewMapStorage() mapStorage {
+	instance := make(map[string]url.URL)
+
+	return mapStorage{
+		storage: instance,
+	}
 }

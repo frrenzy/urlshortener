@@ -10,7 +10,7 @@ import (
 
 func run() error {
 	fmt.Println("Server listening on localhost:8080")
-	return http.ListenAndServe(fmt.Sprintf(":%d", config.Port), handler.MainHandler)
+	return http.ListenAndServe(fmt.Sprintf(":%d", config.Port), handler.NewRouter())
 }
 
 func main() {

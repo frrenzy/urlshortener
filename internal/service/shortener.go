@@ -8,21 +8,31 @@ import (
 	"frrenzy/urlshortener/internal/repository"
 )
 
-func CreateShortURL(original url.URL) (string, error) {
-	short := generateShort()
+type ShortenerService struct {
+	storage   repository.Repository
+	generator shortener
+}
 
-	if ok := repository.Add(original, short); !ok {
-		return "", errors.New("error creating url")
-	}
+func (s ShortenerService) CreateShortURL(original url.URL) (string, error) {
+	short := s.generator.generateShort()
+
+	s.storage.Add(original, short)
 
 	return short, nil
 }
 
-func GetOriginalURL(short string) (url.URL, error) {
-	original, err := repository.Get(short)
+func (s ShortenerService) GetOriginalURL(short string) (url.URL, error) {
+	original, err := s.storage.Get(short)
 	if err != nil {
 		return url.URL{}, errors.New("not found")
 	}
 
 	return original, nil
+}
+
+func NewShortenerService(repository repository.Repository) ShortenerService {
+	return ShortenerService{
+		storage:   repository,
+		generator: randomGenerator{},
+	}
 }
