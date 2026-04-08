@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
 	"frrenzy/urlshortener/internal/config"
@@ -13,7 +12,7 @@ func run() error {
 	config.InitConfig()
 	logger.Initialize()
 
-	fmt.Println("Server listening on ", config.Config.ServerAddress)
+	logger.Log.Info("Server listening on " + config.Config.ServerAddress)
 	return http.ListenAndServe(config.Config.ServerAddress, logger.WithLogging(handler.NewRouter()))
 }
 

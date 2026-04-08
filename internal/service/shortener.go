@@ -2,7 +2,6 @@
 package service
 
 import (
-	"errors"
 	"net/url"
 
 	"frrenzy/urlshortener/internal/repository"
@@ -24,7 +23,7 @@ func (s ShortenerService) CreateShortURL(original url.URL) (string, error) {
 func (s ShortenerService) GetOriginalURL(short string) (url.URL, error) {
 	original, err := s.storage.Get(short)
 	if err != nil {
-		return url.URL{}, errors.New("not found")
+		return url.URL{}, err
 	}
 
 	return original, nil

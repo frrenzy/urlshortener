@@ -2,7 +2,6 @@
 package repository
 
 import (
-	"errors"
 	"net/url"
 )
 
@@ -18,7 +17,7 @@ func (s mapStorage) Add(original url.URL, short string) {
 func (s mapStorage) Get(short string) (url.URL, error) {
 	original, exists := s.storage[short]
 	if !exists {
-		return url.URL{}, errors.New("not found")
+		return url.URL{}, errNotFound
 	}
 
 	return original, nil
