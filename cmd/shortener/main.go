@@ -6,13 +6,15 @@ import (
 
 	"frrenzy/urlshortener/internal/config"
 	"frrenzy/urlshortener/internal/handler"
+	"frrenzy/urlshortener/internal/logger"
 )
 
 func run() error {
 	config.InitConfig()
+	logger.Initialize()
 
 	fmt.Println("Server listening on ", config.Config.ServerAddress)
-	return http.ListenAndServe(config.Config.ServerAddress, handler.NewRouter())
+	return http.ListenAndServe(config.Config.ServerAddress, logger.WithLogging(handler.NewRouter()))
 }
 
 func main() {
