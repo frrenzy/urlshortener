@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
 
@@ -10,10 +9,10 @@ import (
 )
 
 func run() error {
-	flag.Parse()
+	config.InitConfig()
 
-	fmt.Println("Server listening on ", config.ProgramFlags.ServerAddress)
-	return http.ListenAndServe(config.ProgramFlags.ServerAddress, handler.NewRouter())
+	fmt.Println("Server listening on ", config.Config.ServerAddress)
+	return http.ListenAndServe(config.Config.ServerAddress, handler.NewRouter())
 }
 
 func main() {

@@ -1,22 +1,22 @@
 // Package config
 package config
 
-import (
-	"flag"
-)
+import "flag"
 
-type flags struct {
-	ServerAddress string
-	BaseAddress   string
+type config struct {
+	ServerAddress string `env:"SERVER_ADDRESS"`
+	BaseAddress   string `env:"BASE_URL"`
 }
 
-var ProgramFlags = flags{}
+var Config config
 
-const (
-	defaultAddress = "localhost:8080"
-)
+func InitConfig() {
+	flag.Parse()
 
-func init() {
-	flag.StringVar(&ProgramFlags.ServerAddress, "a", defaultAddress, "server address")
-	flag.StringVar(&ProgramFlags.BaseAddress, "b", "http://"+defaultAddress, "base short URL address")
+	if Config.ServerAddress == "" {
+		Config.ServerAddress = programFlags.ServerAddress
+	}
+	if Config.BaseAddress == "" {
+		Config.BaseAddress = programFlags.BaseAddress
+	}
 }

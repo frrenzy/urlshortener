@@ -41,7 +41,7 @@ func (s handler) createShort(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	fmt.Fprintf(w, "%s/%s", config.ProgramFlags.BaseAddress, short)
+	fmt.Fprintf(w, "%s/%s", config.Config.BaseAddress, short)
 }
 
 func (s handler) redirectToOriginal(w http.ResponseWriter, r *http.Request) {

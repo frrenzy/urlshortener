@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,9 +12,9 @@ import (
 )
 
 func main() {
-	flag.Parse()
+	config.InitConfig()
 
-	endpoint := config.ProgramFlags.ServerAddress
+	endpoint := config.Config.ServerAddress
 	// data := url.Values{}
 	client := &http.Client{}
 
