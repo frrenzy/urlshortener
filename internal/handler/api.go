@@ -6,13 +6,18 @@ import (
 	"net/url"
 
 	"frrenzy/urlshortener/internal/config"
-	"frrenzy/urlshortener/internal/logger"
 	"frrenzy/urlshortener/internal/model"
+	"frrenzy/urlshortener/internal/util/logger"
 
+	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
 
-func (s handler) createShortJSON(w http.ResponseWriter, r *http.Request) {
+type apiHandler struct {
+	Services
+}
+
+func (s apiHandler) createShortJSON(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") != "application/json" {
 		logger.Log.Info(errContentType.Error(), zap.Error(errContentType))
 		w.WriteHeader(http.StatusBadRequest)
@@ -37,7 +42,7 @@ func (s handler) createShortJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	short, err := s.urlService.CreateShortURL(*original)
+	short, err := s.UrlService.CreateShortURL(*original)
 	if err != nil {
 		logger.Log.Info(errCanNotCreate.Error(), zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
@@ -58,4 +63,15 @@ func (s handler) createShortJSON(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+}
+
+func newAPIRouter(services Services) chi.Router {
+	router := chi.NewRouter()
+	apiHandlers := apiHandler{Services: services}
+
+	router.Route(`/`, func(r chi.Router) {
+		r.Post(`/shorten`, apiHandlers.createShortJSON)
+	})
+
+	return router
 }

@@ -2,27 +2,23 @@
 package handler
 
 import (
-	"frrenzy/urlshortener/internal/repository"
+	"net/http"
+
 	"frrenzy/urlshortener/internal/service"
 
 	"github.com/go-chi/chi/v5"
 )
 
-type handler struct {
-	urlService service.ShortenerService
+type Services struct {
+	UrlService service.ShortenerService
 }
 
-func NewRouter() *chi.Mux {
-	storage := repository.NewMapStorage()
-	handlers := handler{
-		urlService: service.NewShortenerService(storage),
-	}
-
+func NewRouter(services Services, middlewares ...func(http.Handler) http.Handler) *chi.Mux {
 	router := chi.NewRouter()
+	router.Use(middlewares...)
 
-	router.Get(`/{id}`, handlers.redirectToOriginal)
-	router.Post(`/`, handlers.createShort)
-	router.Post(`/api/shorten`, handlers.createShortJSON)
+	router.Mount(`/`, newPlainRouter(services))
+	router.Mount(`/api`, newAPIRouter(services))
 
 	return router
 }

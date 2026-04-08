@@ -10,7 +10,7 @@ type config struct {
 
 var Config config
 
-func InitConfig() {
+func Initialize() {
 	flag.Parse()
 
 	if Config.ServerAddress == "" {

@@ -5,15 +5,25 @@ import (
 
 	"frrenzy/urlshortener/internal/config"
 	"frrenzy/urlshortener/internal/handler"
-	"frrenzy/urlshortener/internal/logger"
+	"frrenzy/urlshortener/internal/repository"
+	"frrenzy/urlshortener/internal/service"
+	"frrenzy/urlshortener/internal/util/gzip"
+	"frrenzy/urlshortener/internal/util/logger"
 )
 
 func run() error {
-	config.InitConfig()
+	config.Initialize()
 	logger.Initialize()
 
+	storage := repository.NewMapStorage()
+	services := handler.Services{
+		UrlService: service.NewShortenerService(storage),
+	}
+
+	router := handler.NewRouter(services, logger.WithLogging, gzip.CreateGzipMiddleware([]string{"text/html", "application/json"}))
+
 	logger.Log.Info("Server listening on " + config.Config.ServerAddress)
-	return http.ListenAndServe(config.Config.ServerAddress, logger.WithLogging(handler.NewRouter()))
+	return http.ListenAndServe(config.Config.ServerAddress, router)
 }
 
 func main() {

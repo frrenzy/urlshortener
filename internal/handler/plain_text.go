@@ -1,19 +1,22 @@
 package handler
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 
 	"frrenzy/urlshortener/internal/config"
-	"frrenzy/urlshortener/internal/logger"
+	"frrenzy/urlshortener/internal/util/logger"
 
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
 
-func (s handler) createShort(w http.ResponseWriter, r *http.Request) {
+type plainHandler struct {
+	Services
+}
+
+func (s plainHandler) createShort(w http.ResponseWriter, r *http.Request) {
 	urlBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		logger.Log.Info(errCanNotDecode.Error(), zap.Error(errContentType))
@@ -30,7 +33,7 @@ func (s handler) createShort(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	short, err := s.urlService.CreateShortURL(*original)
+	short, err := s.UrlService.CreateShortURL(*original)
 	if err != nil {
 		logger.Log.Info(errCanNotCreate.Error(), zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
@@ -39,10 +42,11 @@ func (s handler) createShort(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	fmt.Fprintf(w, "%s/%s", config.Config.BaseAddress, short)
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(config.Config.BaseAddress + "/" + short))
 }
 
-func (s handler) redirectToOriginal(w http.ResponseWriter, r *http.Request) {
+func (s plainHandler) redirectToOriginal(w http.ResponseWriter, r *http.Request) {
 	short := chi.URLParam(r, "id")
 	if short == "" {
 		logger.Log.Info(errNoShortURLProvided.Error(), zap.Error(errNoShortURLProvided))
@@ -50,7 +54,7 @@ func (s handler) redirectToOriginal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	original, err := s.urlService.GetOriginalURL(short)
+	original, err := s.UrlService.GetOriginalURL(short)
 	if err != nil {
 		logger.Log.Info(errNoShortURLFound.Error(), zap.Error(errNoShortURLFound))
 		w.WriteHeader(http.StatusBadRequest)
@@ -60,4 +64,16 @@ func (s handler) redirectToOriginal(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Location", original.String())
 	w.WriteHeader(http.StatusTemporaryRedirect)
+}
+
+func newPlainRouter(services Services) chi.Router {
+	router := chi.NewRouter()
+	plainHandlers := plainHandler{Services: services}
+
+	router.Route(`/`, func(r chi.Router) {
+		r.Get(`/{id}`, plainHandlers.redirectToOriginal)
+		r.Post(`/`, plainHandlers.createShort)
+	})
+
+	return router
 }

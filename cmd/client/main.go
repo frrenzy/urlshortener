@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	config.InitConfig()
+	config.Initialize()
 
 	endpoint := config.Config.ServerAddress
 	// data := url.Values{}

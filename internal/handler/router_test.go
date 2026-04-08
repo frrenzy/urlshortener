@@ -14,14 +14,17 @@ import (
 	"frrenzy/urlshortener/internal/repository"
 	"frrenzy/urlshortener/internal/service"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_handlers_createShort(t *testing.T) {
-	router := NewRouter()
+	storage := repository.NewMapStorage()
+	services := Services{
+		UrlService: service.NewShortenerService(storage),
+	}
+	router := NewRouter(services)
 	server := httptest.NewServer(router)
 	defer server.Close()
 
@@ -111,11 +114,10 @@ func Test_handlers_redirectToOriginal(t *testing.T) {
 
 	storage := repository.NewMapStorage()
 	storage.Add(originalURL, shortURL)
-	handlers := handler{
-		urlService: service.NewShortenerService(storage),
+	services := Services{
+		UrlService: service.NewShortenerService(storage),
 	}
-	router := chi.NewRouter()
-	router.Get(`/{id}`, handlers.redirectToOriginal)
+	router := NewRouter(services)
 
 	server := httptest.NewServer(router)
 	defer server.Close()
@@ -200,7 +202,11 @@ func Test_handlers_redirectToOriginal(t *testing.T) {
 }
 
 func Test_handlers_createShortJSON(t *testing.T) {
-	router := NewRouter()
+	storage := repository.NewMapStorage()
+	services := Services{
+		UrlService: service.NewShortenerService(storage),
+	}
+	router := NewRouter(services)
 	server := httptest.NewServer(router)
 	defer server.Close()
 
