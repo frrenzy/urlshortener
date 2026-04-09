@@ -1,8 +1,11 @@
+// Package repository
 package repository
 
-import "net/url"
+import (
+	"frrenzy/urlshortener/internal/model"
+)
 
 type Repository interface {
-	Add(original url.URL, short string)
-	Get(short string) (url.URL, error)
+	Add(l model.Link) error
+	Get(short string) (model.Link, error)
 }

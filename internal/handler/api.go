@@ -42,7 +42,7 @@ func (s apiHandler) createShortJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	short, err := s.UrlService.CreateShortURL(*original)
+	short, err := s.URLService.CreateShortURL(*original)
 	if err != nil {
 		logger.Log.Info(errCanNotCreate.Error(), zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)

@@ -22,7 +22,7 @@ import (
 func Test_handlers_createShort(t *testing.T) {
 	storage := repository.NewMapStorage()
 	services := Services{
-		UrlService: service.NewShortenerService(storage),
+		URLService: service.NewShortenerService(storage),
 	}
 	router := NewRouter(services)
 	server := httptest.NewServer(router)
@@ -113,9 +113,9 @@ func Test_handlers_redirectToOriginal(t *testing.T) {
 	)
 
 	storage := repository.NewMapStorage()
-	storage.Add(originalURL, shortURL)
+	storage.Add(model.NewLink(originalURL, shortURL))
 	services := Services{
-		UrlService: service.NewShortenerService(storage),
+		URLService: service.NewShortenerService(storage),
 	}
 	router := NewRouter(services)
 
@@ -204,7 +204,7 @@ func Test_handlers_redirectToOriginal(t *testing.T) {
 func Test_handlers_createShortJSON(t *testing.T) {
 	storage := repository.NewMapStorage()
 	services := Services{
-		UrlService: service.NewShortenerService(storage),
+		URLService: service.NewShortenerService(storage),
 	}
 	router := NewRouter(services)
 	server := httptest.NewServer(router)

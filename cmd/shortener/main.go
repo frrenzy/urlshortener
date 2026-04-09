@@ -15,9 +15,11 @@ func run() error {
 	config.Initialize()
 	logger.Initialize()
 
-	storage := repository.NewMapStorage()
+	storage := repository.NewFileStorage(config.Config.FileStoragePath)
+	defer storage.Close()
+
 	services := handler.Services{
-		UrlService: service.NewShortenerService(storage),
+		URLService: service.NewShortenerService(storage),
 	}
 
 	router := handler.NewRouter(services, logger.WithLogging, gzip.CreateGzipMiddleware([]string{"text/html", "application/json"}))

@@ -33,7 +33,7 @@ func (s plainHandler) createShort(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	short, err := s.UrlService.CreateShortURL(*original)
+	short, err := s.URLService.CreateShortURL(*original)
 	if err != nil {
 		logger.Log.Info(errCanNotCreate.Error(), zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
@@ -54,7 +54,7 @@ func (s plainHandler) redirectToOriginal(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	original, err := s.UrlService.GetOriginalURL(short)
+	original, err := s.URLService.GetOriginalURL(short)
 	if err != nil {
 		logger.Log.Info(errNoShortURLFound.Error(), zap.Error(errNoShortURLFound))
 		w.WriteHeader(http.StatusBadRequest)
@@ -62,7 +62,7 @@ func (s plainHandler) redirectToOriginal(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	w.Header().Add("Location", original.String())
+	w.Header().Add("Location", original)
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 

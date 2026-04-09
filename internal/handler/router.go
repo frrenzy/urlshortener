@@ -10,7 +10,7 @@ import (
 )
 
 type Services struct {
-	UrlService service.ShortenerService
+	URLService service.ShortenerService
 }
 
 func NewRouter(services Services, middlewares ...func(http.Handler) http.Handler) *chi.Mux {
