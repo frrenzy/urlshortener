@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"testing"
 
+	"frrenzy/urlshortener/internal/model"
 	"frrenzy/urlshortener/internal/repository"
 
 	"github.com/stretchr/testify/assert"
@@ -57,7 +58,7 @@ func Test_shortenerService_CreateShortURL(t *testing.T) {
 
 func Test_shortenerService_GetOriginalURL(t *testing.T) {
 	repository := repository.NewMapStorage()
-	repository.Add(originalURL, shortURL)
+	repository.Add(model.NewLink(originalURL, shortURL))
 	service := ShortenerService{
 		storage:   repository,
 		generator: mockGenerator{},
@@ -66,19 +67,19 @@ func Test_shortenerService_GetOriginalURL(t *testing.T) {
 	tests := []struct {
 		name    string
 		short   string
-		want    url.URL
+		want    string
 		wantErr bool
 	}{
 		{
 			name:    "simple test",
 			short:   shortURL,
-			want:    originalURL,
+			want:    originalURL.String(),
 			wantErr: false,
 		},
 		{
 			name:    "nonexistent key",
 			short:   "key",
-			want:    url.URL{},
+			want:    "",
 			wantErr: true,
 		},
 	}

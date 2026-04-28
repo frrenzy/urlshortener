@@ -2,9 +2,9 @@
 package service
 
 import (
-	"errors"
 	"net/url"
 
+	"frrenzy/urlshortener/internal/model"
 	"frrenzy/urlshortener/internal/repository"
 )
 
@@ -16,18 +16,18 @@ type ShortenerService struct {
 func (s ShortenerService) CreateShortURL(original url.URL) (string, error) {
 	short := s.generator.generateShort()
 
-	s.storage.Add(original, short)
+	s.storage.Add(model.NewLink(original, short))
 
 	return short, nil
 }
 
-func (s ShortenerService) GetOriginalURL(short string) (url.URL, error) {
-	original, err := s.storage.Get(short)
+func (s ShortenerService) GetOriginalURL(short string) (string, error) {
+	link, err := s.storage.Get(short)
 	if err != nil {
-		return url.URL{}, errors.New("not found")
+		return "", err
 	}
 
-	return original, nil
+	return link.OriginalURL.String(), nil
 }
 
 func NewShortenerService(repository repository.Repository) ShortenerService {
