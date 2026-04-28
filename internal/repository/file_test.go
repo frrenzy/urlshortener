@@ -109,7 +109,7 @@ func Test_fileStorage_Get(t *testing.T) {
 				require.Error(t, gotErr, "Should fail")
 			}
 
-			assert.Equal(t, test.want, got)
+			assert.Equal(t, test.want, *got)
 		})
 	}
 }

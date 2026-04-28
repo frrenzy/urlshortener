@@ -9,27 +9,27 @@ import (
 type mapStorage struct {
 	Repository
 	storage map[string]model.Link
-	lock    *sync.RWMutex
+	mu      *sync.RWMutex
 }
 
 func (s mapStorage) Add(l model.Link) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	s.storage[l.ShortURL] = l
 
 	return nil
 }
 
-func (s mapStorage) Get(short string) (model.Link, error) {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
+func (s mapStorage) Get(short string) (*model.Link, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	link, exists := s.storage[short]
 	if !exists {
-		return model.Link{}, errNotFound
+		return &model.Link{}, errNotFound
 	}
 
-	return link, nil
+	return &link, nil
 }
 
 func NewMapStorage() mapStorage {
@@ -37,6 +37,6 @@ func NewMapStorage() mapStorage {
 
 	return mapStorage{
 		storage: instance,
-		lock:    &sync.RWMutex{},
+		mu:      &sync.RWMutex{},
 	}
 }

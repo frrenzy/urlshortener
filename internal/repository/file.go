@@ -28,19 +28,19 @@ func (s *fileStorage) Add(l model.Link) error {
 	return s.WriteAll(data)
 }
 
-func (s *fileStorage) Get(short string) (model.Link, error) {
+func (s *fileStorage) Get(short string) (*model.Link, error) {
 	data, err := s.ReadAll()
 	if err != nil {
-		return model.Link{}, err
+		return &model.Link{}, err
 	}
 
 	for _, link := range data {
 		if link.ShortURL == short {
-			return link, nil
+			return &link, nil
 		}
 	}
 
-	return model.Link{}, errNotFound
+	return &model.Link{}, errNotFound
 }
 
 func (s *fileStorage) ReadAll() ([]model.Link, error) {

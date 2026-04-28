@@ -45,7 +45,7 @@ func (s apiHandler) createShortJSON(w http.ResponseWriter, r *http.Request) {
 	short, err := s.URLService.CreateShortURL(*original)
 	if err != nil {
 		logger.Log.Info(errCanNotCreate.Error(), zap.Error(err))
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(errCanNotCreate.Error()))
 		return
 	}
@@ -60,7 +60,7 @@ func (s apiHandler) createShortJSON(w http.ResponseWriter, r *http.Request) {
 
 	if err := enc.Encode(res); err != nil {
 		logger.Log.Debug(errCanNotEncode.Error(), zap.Error(err))
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 }

@@ -13,7 +13,7 @@ import (
 
 func run() error {
 	config.Initialize()
-	logger.Initialize()
+	logger.Initialize(logger.DebugLevel)
 
 	storage := repository.NewFileStorage(config.Config.FileStoragePath)
 	defer storage.Close()

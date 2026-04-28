@@ -6,6 +6,6 @@ import (
 )
 
 type Repository interface {
-	Add(l model.Link) error
-	Get(short string) (model.Link, error)
+	Add(link model.Link) error
+	Get(short string) (*model.Link, error)
 }
