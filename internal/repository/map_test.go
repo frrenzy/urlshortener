@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"net/url"
 	"testing"
 
@@ -31,7 +32,7 @@ func Test_mapStorage_Add(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			s := NewMapStorage()
-			s.Add(model.NewLink(test.original, test.short))
+			s.Add(context.TODO(), model.NewLink(test.original, test.short))
 
 			assert.Equal(t, expectedLink, s.storage[test.short])
 		})
@@ -70,7 +71,7 @@ func Test_mapStorage_Get(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, gotErr := s.Get(test.short)
+			got, gotErr := s.Get(context.TODO(), test.short)
 
 			if !test.wantErr {
 				require.NoError(t, gotErr, "Should not fail")
@@ -78,7 +79,7 @@ func Test_mapStorage_Get(t *testing.T) {
 				require.Error(t, gotErr, "Should fail")
 			}
 
-			assert.Equal(t, test.want, got)
+			assert.Equal(t, test.want, *got)
 		})
 	}
 }

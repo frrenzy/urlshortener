@@ -2,6 +2,7 @@
 package service
 
 import (
+	"context"
 	"net/url"
 
 	"frrenzy/urlshortener/internal/model"
@@ -13,16 +14,16 @@ type ShortenerService struct {
 	generator shortener
 }
 
-func (s ShortenerService) CreateShortURL(original url.URL) (string, error) {
+func (s ShortenerService) CreateShortURL(ctx context.Context, original url.URL) (string, error) {
 	short := s.generator.generateShort()
 
-	s.storage.Add(model.NewLink(original, short))
+	s.storage.Add(ctx, model.NewLink(original, short))
 
 	return short, nil
 }
 
-func (s ShortenerService) GetOriginalURL(short string) (string, error) {
-	link, err := s.storage.Get(short)
+func (s ShortenerService) GetOriginalURL(ctx context.Context, short string) (string, error) {
+	link, err := s.storage.Get(ctx, short)
 	if err != nil {
 		return "", err
 	}

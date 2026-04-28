@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/url"
@@ -43,7 +44,7 @@ func Test_fileStorage_Add(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := s.Add(model.NewLink(test.original, test.short))
+			err := s.Add(context.TODO(), model.NewLink(test.original, test.short))
 			require.NoError(t, err, "should not fail")
 
 			storageFileContent, err := io.ReadAll(storageFile)
@@ -101,7 +102,7 @@ func Test_fileStorage_Get(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, gotErr := s.Get(test.short)
+			got, gotErr := s.Get(context.TODO(), test.short)
 
 			if !test.wantErr {
 				require.NoError(t, gotErr, "Should not fail")
@@ -109,7 +110,7 @@ func Test_fileStorage_Get(t *testing.T) {
 				require.Error(t, gotErr, "Should fail")
 			}
 
-			assert.Equal(t, test.want, got)
+			assert.Equal(t, test.want, *got)
 		})
 	}
 }

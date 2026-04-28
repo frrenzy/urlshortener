@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"frrenzy/urlshortener/internal/service"
@@ -13,12 +14,12 @@ type Services struct {
 	URLService service.ShortenerService
 }
 
-func NewRouter(services Services, middlewares ...func(http.Handler) http.Handler) *chi.Mux {
+func NewRouter(ctx context.Context, services Services, middlewares ...func(http.Handler) http.Handler) *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(middlewares...)
 
-	router.Mount(`/`, newPlainRouter(services))
-	router.Mount(`/api`, newAPIRouter(services))
+	router.Mount(`/`, newPlainRouter(ctx, services))
+	router.Mount(`/api`, newAPIRouter(ctx, services))
 
 	return router
 }

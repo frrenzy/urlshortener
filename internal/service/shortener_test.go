@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"net/url"
 	"testing"
 
@@ -47,7 +48,7 @@ func Test_shortenerService_CreateShortURL(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, gotErr := service.CreateShortURL(test.original)
+			got, gotErr := service.CreateShortURL(context.TODO(), test.original)
 
 			require.NoError(t, gotErr, "should not fail")
 
@@ -58,7 +59,7 @@ func Test_shortenerService_CreateShortURL(t *testing.T) {
 
 func Test_shortenerService_GetOriginalURL(t *testing.T) {
 	repository := repository.NewMapStorage()
-	repository.Add(model.NewLink(originalURL, shortURL))
+	repository.Add(context.TODO(), model.NewLink(originalURL, shortURL))
 	service := ShortenerService{
 		storage:   repository,
 		generator: mockGenerator{},
@@ -86,7 +87,7 @@ func Test_shortenerService_GetOriginalURL(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, gotErr := service.GetOriginalURL(test.short)
+			got, gotErr := service.GetOriginalURL(context.TODO(), test.short)
 
 			if !test.wantErr {
 				require.NoError(t, gotErr, "Should not fail")

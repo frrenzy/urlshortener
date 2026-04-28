@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -24,7 +25,7 @@ func Test_handlers_createShort(t *testing.T) {
 	services := Services{
 		URLService: service.NewShortenerService(storage),
 	}
-	router := NewRouter(services)
+	router := NewRouter(context.TODO(), services)
 	server := httptest.NewServer(router)
 	defer server.Close()
 
@@ -113,11 +114,11 @@ func Test_handlers_redirectToOriginal(t *testing.T) {
 	)
 
 	storage := repository.NewMapStorage()
-	storage.Add(model.NewLink(originalURL, shortURL))
+	storage.Add(context.TODO(), model.NewLink(originalURL, shortURL))
 	services := Services{
 		URLService: service.NewShortenerService(storage),
 	}
-	router := NewRouter(services)
+	router := NewRouter(context.Background(), services)
 
 	server := httptest.NewServer(router)
 	defer server.Close()
@@ -206,7 +207,7 @@ func Test_handlers_createShortJSON(t *testing.T) {
 	services := Services{
 		URLService: service.NewShortenerService(storage),
 	}
-	router := NewRouter(services)
+	router := NewRouter(context.Background(), services)
 	server := httptest.NewServer(router)
 	defer server.Close()
 
