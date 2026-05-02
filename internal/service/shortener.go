@@ -14,6 +14,11 @@ type ShortenerService struct {
 	generator shortener
 }
 
+type URLBatchInstance struct {
+	Original      url.URL
+	CorrelationID string
+}
+
 func (s ShortenerService) CreateShortURL(ctx context.Context, original url.URL) (string, error) {
 	short := s.generator.generateShort()
 
@@ -32,6 +37,21 @@ func (s ShortenerService) GetOriginalURL(ctx context.Context, short string) (str
 	}
 
 	return link.OriginalURL.String(), nil
+}
+
+func (s ShortenerService) BatchCreateShortURL(ctx context.Context, urls []URLBatchInstance) ([]model.Link, error) {
+	var links []model.Link
+	for _, instance := range urls {
+		short := s.generator.generateShort()
+		links = append(links, model.NewLinkWithUUID(instance.Original, short, instance.CorrelationID))
+	}
+
+	result, err := s.storage.BatchAdd(ctx, links)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func (s ShortenerService) PingStorage(ctx context.Context) error {

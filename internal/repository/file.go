@@ -29,6 +29,17 @@ func (s *fileStorage) Add(ctx context.Context, l model.Link) error {
 	return s.WriteAll(data)
 }
 
+func (s *fileStorage) BatchAdd(ctx context.Context, links []model.Link) ([]model.Link, error) {
+	data, err := s.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	data = append(data, links...)
+
+	return links, s.WriteAll(data)
+}
+
 func (s *fileStorage) Get(ctx context.Context, short string) (*model.Link, error) {
 	data, err := s.ReadAll()
 	if err != nil {

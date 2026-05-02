@@ -22,6 +22,17 @@ func (s mapStorage) Add(ctx context.Context, l model.Link) error {
 	return nil
 }
 
+func (s mapStorage) BatchAdd(ctx context.Context, links []model.Link) ([]model.Link, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, link := range links {
+		s.storage[link.ShortURL] = link
+	}
+
+	return links, nil
+}
+
 func (s mapStorage) Get(ctx context.Context, short string) (*model.Link, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

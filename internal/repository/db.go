@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"frrenzy/urlshortener/internal/model"
 )
@@ -12,12 +13,14 @@ type dbStorage struct {
 	db *sql.DB
 }
 
+const insertQuery = `
+  INSERT INTO links
+	    (uuid, short_url, original_url)
+	VALUES
+	    ($1, $2, $3)`
+
 func (s *dbStorage) Add(ctx context.Context, l model.Link) error {
-	res, err := s.db.ExecContext(ctx, `
-		INSERT INTO links
-		    (uuid, short_url, original_url)
-		VALUES
-		    ($1, $2, $3)`, l.UUID, l.ShortURL, l.OriginalURL)
+	res, err := s.db.ExecContext(ctx, insertQuery, l.UUID, l.ShortURL, l.OriginalURL)
 	if err != nil {
 		return err
 	}
@@ -29,17 +32,49 @@ func (s *dbStorage) Add(ctx context.Context, l model.Link) error {
 	return nil
 }
 
+func (s *dbStorage) BatchAdd(ctx context.Context, links []model.Link) ([]model.Link, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	sttm, err := tx.PrepareContext(ctx, insertQuery)
+	if err != nil {
+		return nil, err
+	}
+	defer sttm.Close()
+
+	insertedRows := 0
+	for _, link := range links {
+		res, err := sttm.ExecContext(ctx, link.UUID, link.ShortURL, link.OriginalURL)
+		if err != nil {
+			return nil, err
+		}
+
+		inserted, _ := res.RowsAffected()
+		insertedRows += int(inserted)
+	}
+
+	if insertedRows != len(links) {
+		return nil, errDb
+	}
+
+	tx.Commit()
+	return links, nil
+}
+
 func (s *dbStorage) Get(ctx context.Context, short string) (*model.Link, error) {
 	row := s.db.QueryRowContext(ctx, `
 		SELECT uuid
 		     , short_url
 		     , original_url
 		FROM links
-		WHERE short = $1`, short)
+		WHERE short_url = $1`, short)
 
 	link := model.Link{}
 
-	err := row.Scan(link.UUID, link.ShortURL, link.OriginalURL)
+	err := row.Scan(&link.UUID, &link.ShortURL, &link.OriginalURL)
+	fmt.Println("found", link, "for short", short, "error", err)
 	if err != nil {
 		return &model.Link{}, errDb
 	}

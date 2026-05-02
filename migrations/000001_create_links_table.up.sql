@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS links (
-  uuid         VARCHAR(6) PRIMARY KEY,
+  uuid         VARCHAR(36) PRIMARY KEY,
   short_url    VARCHAR(6),
   original_url VARCHAR(256)
 );

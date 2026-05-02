@@ -60,6 +60,59 @@ func Test_fileStorage_Add(t *testing.T) {
 	}
 }
 
+func Test_fileStorage_BatchAdd(t *testing.T) {
+	firstOriginal := url.URL{
+		Host: "domain.com",
+	}
+	firstShort := "short-domain"
+	firstExpectedLink := model.NewLink(firstOriginal, firstShort)
+	secondOriginal := url.URL{
+		Host: "another-domain.com",
+	}
+	secondShort := "another-short-domain"
+	secondExpectedLink := model.NewLink(secondOriginal, secondShort)
+	links := []model.Link{firstExpectedLink, secondExpectedLink}
+
+	storageFile, err := os.CreateTemp(os.TempDir(), "storage.json")
+	if err != nil {
+		require.NoError(t, err, "could not create test storage file")
+	}
+	defer os.Remove(storageFile.Name())
+
+	s := fileStorage{
+		file: storageFile,
+	}
+
+	tests := []struct {
+		name  string
+		links []model.Link
+		short []string
+	}{
+		{
+			name:  "simple test",
+			links: links,
+			short: []string{firstShort, secondShort},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := s.BatchAdd(context.TODO(), links)
+			require.NoError(t, err, "should not fail")
+
+			storageFileContent, err := io.ReadAll(storageFile)
+			require.NoError(t, err, "could not read test storage file")
+
+			var gotLinks []model.Link
+			err = json.Unmarshal(storageFileContent, &gotLinks)
+			require.NoError(t, err, "could not Unmarshal test storage file")
+
+			assert.Equal(t, 2, len(links), "should have 2 records")
+			assert.Equal(t, firstExpectedLink, gotLinks[0])
+			assert.Equal(t, secondExpectedLink, gotLinks[1])
+		})
+	}
+}
+
 func Test_fileStorage_Get(t *testing.T) {
 	mockLink := model.NewLink(url.URL{
 		Host: "domain.com",

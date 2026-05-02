@@ -66,3 +66,11 @@ func NewLink(original url.URL, short string) Link {
 		OriginalURL: URL{original},
 	}
 }
+
+func NewLinkWithUUID(original url.URL, short string, uuid string) Link {
+	return Link{
+		UUID:        uuid,
+		ShortURL:    short,
+		OriginalURL: URL{original},
+	}
+}

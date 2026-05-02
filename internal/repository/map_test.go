@@ -39,6 +39,43 @@ func Test_mapStorage_Add(t *testing.T) {
 	}
 }
 
+func Test_mapStorage_BatchAdd(t *testing.T) {
+	firstOriginal := url.URL{
+		Host: "domain.com",
+	}
+	firstShort := "short-domain"
+	firstExpectedLink := model.NewLink(firstOriginal, firstShort)
+	secondOriginal := url.URL{
+		Host: "another-domain.com",
+	}
+	secondShort := "another-short-domain"
+	secondExpectedLink := model.NewLink(secondOriginal, secondShort)
+	links := []model.Link{firstExpectedLink, secondExpectedLink}
+
+	tests := []struct {
+		name  string
+		links []model.Link
+		short []string
+	}{
+		{
+			name:  "simple test",
+			links: links,
+			short: []string{firstShort, secondShort},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			s := NewMapStorage()
+			_, err := s.BatchAdd(context.TODO(), links)
+			require.NoError(t, err, "should not fail")
+
+			assert.Equal(t, 2, len(s.storage), "should have 2 records")
+			assert.Equal(t, firstExpectedLink, s.storage[test.short[0]])
+			assert.Equal(t, secondExpectedLink, s.storage[test.short[1]])
+		})
+	}
+}
+
 func Test_mapStorage_Get(t *testing.T) {
 	mockLink := model.NewLink(url.URL{
 		Host: "domain.com",
