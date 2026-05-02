@@ -12,6 +12,7 @@ type config struct {
 	ServerAddress   string `env:"SERVER_ADDRESS"`
 	BaseAddress     string `env:"BASE_URL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	DatabaseDSN     string `env:"DATABASE_DSN"`
 }
 
 var Config config
@@ -32,5 +33,8 @@ func Initialize() {
 	}
 	if Config.FileStoragePath == "" {
 		Config.FileStoragePath = programFlags.FileStoragePath
+	}
+	if Config.DatabaseDSN == "" {
+		Config.DatabaseDSN = programFlags.DatabaseDSN
 	}
 }

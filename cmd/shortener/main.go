@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"frrenzy/urlshortener/internal/config"
+	"frrenzy/urlshortener/internal/config/db"
 	"frrenzy/urlshortener/internal/handler"
 	"frrenzy/urlshortener/internal/repository"
 	"frrenzy/urlshortener/internal/service"
@@ -16,11 +18,20 @@ func run() error {
 	config.Initialize()
 	logger.Initialize(logger.DebugLevel)
 
+	fmt.Println(config.Config)
+
 	storage := repository.NewFileStorage(config.Config.FileStoragePath)
 	defer storage.Close()
 
+	db, err := db.Connect(config.Config.DatabaseDSN)
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
 	services := handler.Services{
 		URLService: service.NewShortenerService(storage),
+		DB:         db,
 	}
 
 	ctx := context.Background()
