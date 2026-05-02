@@ -100,6 +100,10 @@ func (s *fileStorage) Close() {
 	s.file.Close()
 }
 
+func (s *fileStorage) PingStorage(ctx context.Context) error {
+	return errDBNotConnected
+}
+
 func NewFileStorage(path string) *fileStorage {
 	p, err := filepath.Abs(path)
 	if err != nil {

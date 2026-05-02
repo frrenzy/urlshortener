@@ -25,7 +25,7 @@ func Test_handlers_createShort(t *testing.T) {
 	services := Services{
 		URLService: service.NewShortenerService(storage),
 	}
-	router := NewRouter(context.TODO(), services)
+	router := NewRouter(services)
 	server := httptest.NewServer(router)
 	defer server.Close()
 
@@ -118,7 +118,7 @@ func Test_handlers_redirectToOriginal(t *testing.T) {
 	services := Services{
 		URLService: service.NewShortenerService(storage),
 	}
-	router := NewRouter(context.Background(), services)
+	router := NewRouter(services)
 
 	server := httptest.NewServer(router)
 	defer server.Close()
@@ -207,7 +207,7 @@ func Test_handlers_createShortJSON(t *testing.T) {
 	services := Services{
 		URLService: service.NewShortenerService(storage),
 	}
-	router := NewRouter(context.Background(), services)
+	router := NewRouter(services)
 	server := httptest.NewServer(router)
 	defer server.Close()
 

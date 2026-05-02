@@ -114,3 +114,17 @@ func Test_fileStorage_Get(t *testing.T) {
 		})
 	}
 }
+
+func Test_fileStorage_PingStorage(t *testing.T) {
+	storageFile, err := os.CreateTemp(os.TempDir(), "storage.json")
+	if err != nil {
+		require.NoError(t, err, "could not create test storage file")
+	}
+	defer os.Remove(storageFile.Name())
+
+	s := fileStorage{
+		file: storageFile,
+	}
+	err = s.PingStorage(context.TODO())
+	assert.ErrorIs(t, err, errDBNotConnected, "should fail")
+}

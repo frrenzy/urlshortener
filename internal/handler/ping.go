@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -12,25 +13,25 @@ type pingHandler struct {
 	Services
 }
 
-func (s pingHandler) pingDB(ctx context.Context) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		cancelCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
-		defer cancel()
-		err := s.DB.PingContext(cancelCtx)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		} else {
-			w.WriteHeader(http.StatusOK)
-		}
+func (s pingHandler) pingDB(w http.ResponseWriter, r *http.Request) {
+	cancelCtx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+	defer cancel()
+
+	err := s.URLService.PingStorage(cancelCtx)
+	fmt.Println(err)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		w.WriteHeader(http.StatusOK)
 	}
 }
 
-func newPingRouter(ctx context.Context, services Services) chi.Router {
+func newPingRouter(services Services) chi.Router {
 	router := chi.NewRouter()
 	pingHandlers := pingHandler{Services: services}
 
 	router.Route(`/`, func(r chi.Router) {
-		r.Get(`/`, pingHandlers.pingDB(ctx))
+		r.Get(`/`, pingHandlers.pingDB)
 	})
 
 	return router

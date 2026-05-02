@@ -83,3 +83,9 @@ func Test_mapStorage_Get(t *testing.T) {
 		})
 	}
 }
+
+func Test_mapStorage_PingStorage(t *testing.T) {
+	s := NewMapStorage()
+	err := s.PingStorage(context.TODO())
+	assert.ErrorIs(t, err, errDBNotConnected, "should fail")
+}

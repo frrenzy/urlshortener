@@ -17,7 +17,10 @@ type ShortenerService struct {
 func (s ShortenerService) CreateShortURL(ctx context.Context, original url.URL) (string, error) {
 	short := s.generator.generateShort()
 
-	s.storage.Add(ctx, model.NewLink(original, short))
+	err := s.storage.Add(ctx, model.NewLink(original, short))
+	if err != nil {
+		return "", err
+	}
 
 	return short, nil
 }
@@ -29,6 +32,10 @@ func (s ShortenerService) GetOriginalURL(ctx context.Context, short string) (str
 	}
 
 	return link.OriginalURL.String(), nil
+}
+
+func (s ShortenerService) PingStorage(ctx context.Context) error {
+	return s.storage.PingStorage(ctx)
 }
 
 func NewShortenerService(repository repository.Repository) ShortenerService {

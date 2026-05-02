@@ -33,6 +33,12 @@ func (s mapStorage) Get(ctx context.Context, short string) (*model.Link, error) 
 	return &link, nil
 }
 
+func (s mapStorage) Close() {}
+
+func (s mapStorage) PingStorage(ctx context.Context) error {
+	return errDBNotConnected
+}
+
 func NewMapStorage() mapStorage {
 	instance := make(map[string]model.Link)
 
