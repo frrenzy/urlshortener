@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
 
 	"frrenzy/urlshortener/internal/config"
+	"frrenzy/urlshortener/internal/service"
 	"frrenzy/urlshortener/internal/util/logger"
 
 	"github.com/go-chi/chi/v5"
@@ -33,15 +35,25 @@ func (s plainHandler) createShort(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var statusCode int
 	short, err := s.URLService.CreateShortURL(r.Context(), *original)
 	if err != nil {
-		logger.Log.Info(errCanNotCreate.Error(), zap.Error(err))
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(errCanNotCreate.Error()))
-		return
+
+		if !errors.Is(err, service.ErrLinkAlreadyExists) {
+			logger.Log.Info(errCanNotCreate.Error(), zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(errCanNotCreate.Error()))
+
+			return
+		}
+
+		logger.Log.Info(err.Error(), zap.Error(err))
+		statusCode = http.StatusConflict
+	} else {
+		statusCode = http.StatusCreated
 	}
 
-	w.WriteHeader(http.StatusCreated)
+	w.WriteHeader(statusCode)
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(config.Config.BaseAddress + "/" + short))
 }

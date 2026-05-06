@@ -3,6 +3,7 @@ package repository
 
 import (
 	"context"
+	"net/url"
 
 	"frrenzy/urlshortener/internal/config"
 	"frrenzy/urlshortener/internal/config/db"
@@ -14,6 +15,7 @@ type Repository interface {
 	Add(ctx context.Context, link model.Link) error
 	BatchAdd(ctx context.Context, links []model.Link) ([]model.Link, error)
 	Get(ctx context.Context, short string) (*model.Link, error)
+	GetByOriginal(ctx context.Context, original url.URL) (*model.Link, error)
 	Close()
 	PingStorage(ctx context.Context) error
 }

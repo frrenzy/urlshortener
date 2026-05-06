@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
 
@@ -43,21 +44,30 @@ func (s apiHandler) createShortJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var statusCode int
 	short, err := s.URLService.CreateShortURL(r.Context(), *original)
 	if err != nil {
-		logger.Log.Info(errCanNotCreate.Error(), zap.Error(err))
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(errCanNotCreate.Error()))
-		return
+		if !errors.Is(err, service.ErrLinkAlreadyExists) {
+			logger.Log.Info(errCanNotCreate.Error(), zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(errCanNotCreate.Error()))
+
+			return
+		}
+
+		logger.Log.Info(err.Error(), zap.Error(err))
+		statusCode = http.StatusConflict
+	} else {
+		statusCode = http.StatusCreated
 	}
 
 	res := model.ShortenResponse{
 		Result: config.Config.BaseAddress + "/" + short,
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
 
 	enc := json.NewEncoder(w)
-	w.WriteHeader(http.StatusCreated)
 
 	if err := enc.Encode(res); err != nil {
 		logger.Log.Debug(errCanNotEncode.Error(), zap.Error(err))

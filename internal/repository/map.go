@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"net/url"
 	"sync"
 
 	"frrenzy/urlshortener/internal/model"
@@ -38,10 +39,24 @@ func (s mapStorage) Get(ctx context.Context, short string) (*model.Link, error) 
 	defer s.mu.RUnlock()
 	link, exists := s.storage[short]
 	if !exists {
-		return &model.Link{}, errNotFound
+		return &model.Link{}, errDBNotFound
 	}
 
 	return &link, nil
+}
+
+func (s mapStorage) GetByOriginal(ctx context.Context, original url.URL) (*model.Link, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	urlToCompare := model.URL{URL: original}
+	for _, link := range s.storage {
+		if link.OriginalURL == urlToCompare {
+			return &link, nil
+		}
+	}
+
+	return &model.Link{}, errDBNotFound
 }
 
 func (s mapStorage) Close() {}

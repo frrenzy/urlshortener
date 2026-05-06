@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"net/url"
 
 	"frrenzy/urlshortener/internal/model"
@@ -24,7 +25,16 @@ func (s ShortenerService) CreateShortURL(ctx context.Context, original url.URL) 
 
 	err := s.storage.Add(ctx, model.NewLink(original, short))
 	if err != nil {
-		return "", err
+		if !errors.Is(err, repository.ErrDBExisting) {
+			return "", err
+		}
+
+		link, err := s.storage.GetByOriginal(ctx, original)
+		if err != nil {
+			return "", err
+		}
+
+		return link.ShortURL, ErrLinkAlreadyExists
 	}
 
 	return short, nil

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 
@@ -52,7 +53,23 @@ func (s *fileStorage) Get(ctx context.Context, short string) (*model.Link, error
 		}
 	}
 
-	return &model.Link{}, errNotFound
+	return &model.Link{}, errDBNotFound
+}
+
+func (s *fileStorage) GetByOriginal(ctx context.Context, original url.URL) (*model.Link, error) {
+	data, err := s.ReadAll()
+	if err != nil {
+		return &model.Link{}, err
+	}
+
+	urlToCompare := model.URL{URL: original}
+	for _, link := range data {
+		if link.OriginalURL == urlToCompare {
+			return &link, nil
+		}
+	}
+
+	return &model.Link{}, errDBNotFound
 }
 
 func (s *fileStorage) ReadAll() ([]model.Link, error) {

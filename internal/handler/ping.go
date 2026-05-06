@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -18,7 +17,6 @@ func (s pingHandler) pingDB(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	err := s.URLService.PingStorage(cancelCtx)
-	fmt.Println(err)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {

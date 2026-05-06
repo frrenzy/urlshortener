@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"net/url"
 
 	"frrenzy/urlshortener/internal/model"
 )
@@ -17,7 +17,8 @@ const insertQuery = `
   INSERT INTO links
 	    (uuid, short_url, original_url)
 	VALUES
-	    ($1, $2, $3)`
+	    ($1, $2, $3)
+	ON CONFLICT DO NOTHING`
 
 func (s *dbStorage) Add(ctx context.Context, l model.Link) error {
 	res, err := s.db.ExecContext(ctx, insertQuery, l.UUID, l.ShortURL, l.OriginalURL)
@@ -26,7 +27,7 @@ func (s *dbStorage) Add(ctx context.Context, l model.Link) error {
 	}
 
 	if rows, _ := res.RowsAffected(); rows != 1 {
-		return errDb
+		return ErrDBExisting
 	}
 
 	return nil
@@ -56,7 +57,7 @@ func (s *dbStorage) BatchAdd(ctx context.Context, links []model.Link) ([]model.L
 	}
 
 	if insertedRows != len(links) {
-		return nil, errDb
+		return nil, ErrDBExisting
 	}
 
 	tx.Commit()
@@ -74,9 +75,26 @@ func (s *dbStorage) Get(ctx context.Context, short string) (*model.Link, error) 
 	link := model.Link{}
 
 	err := row.Scan(&link.UUID, &link.ShortURL, &link.OriginalURL)
-	fmt.Println("found", link, "for short", short, "error", err)
 	if err != nil {
-		return &model.Link{}, errDb
+		return &model.Link{}, errDBNotFound
+	}
+
+	return &link, nil
+}
+
+func (s *dbStorage) GetByOriginal(ctx context.Context, original url.URL) (*model.Link, error) {
+	row := s.db.QueryRowContext(ctx, `
+		SELECT uuid
+		     , short_url
+		     , original_url
+		FROM links
+		WHERE original_url = $1`, model.URL{URL: original})
+
+	link := model.Link{}
+
+	err := row.Scan(&link.UUID, &link.ShortURL, &link.OriginalURL)
+	if err != nil {
+		return &model.Link{}, errDBNotFound
 	}
 
 	return &link, nil
