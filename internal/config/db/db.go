@@ -15,7 +15,7 @@ import (
 func Connect(dsn string) (*sql.DB, error) {
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
-		return nil, errCouldNotEstablishConnection
+		return nil, err
 	}
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
@@ -25,7 +25,8 @@ func Connect(dsn string) (*sql.DB, error) {
 
 	migrator, err := migrate.NewWithDatabaseInstance(
 		"file://migrations",
-		"postgres", driver)
+		"postgres", driver,
+	)
 	if err != nil {
 		return nil, errCouldNotCreateMigrator
 	}

@@ -21,7 +21,7 @@ type plainHandler struct {
 func (s plainHandler) createShort(w http.ResponseWriter, r *http.Request) {
 	urlBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		logger.Log.Info(errCanNotDecode.Error(), zap.Error(errContentType))
+		logger.Log.Debug(errCanNotDecode.Error(), zap.Error(errContentType))
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(errCanNotDecode.Error()))
 		return
@@ -29,7 +29,7 @@ func (s plainHandler) createShort(w http.ResponseWriter, r *http.Request) {
 
 	original, err := url.ParseRequestURI(string(urlBytes))
 	if err != nil {
-		logger.Log.Info(errCanNotParseURL.Error(), zap.Error(err))
+		logger.Log.Debug(errCanNotParseURL.Error(), zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(errCanNotParseURL.Error()))
 		return
@@ -53,9 +53,18 @@ func (s plainHandler) createShort(w http.ResponseWriter, r *http.Request) {
 		statusCode = http.StatusCreated
 	}
 
+	path, err := url.JoinPath(config.Config.BaseAddress, "/", short)
+	if err != nil {
+		logger.Log.Info(errCanNotCreate.Error(), zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(errCanNotCreate.Error()))
+
+		return
+	}
+
 	w.WriteHeader(statusCode)
 	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte(config.Config.BaseAddress + "/" + short))
+	w.Write([]byte(path))
 }
 
 func (s plainHandler) redirectToOriginal(w http.ResponseWriter, r *http.Request) {
@@ -68,7 +77,7 @@ func (s plainHandler) redirectToOriginal(w http.ResponseWriter, r *http.Request)
 
 	original, err := s.URLService.GetOriginalURL(r.Context(), short)
 	if err != nil {
-		logger.Log.Info(errNoShortURLFound.Error(), zap.Error(errNoShortURLFound))
+		logger.Log.Debug(errNoShortURLFound.Error(), zap.Error(errNoShortURLFound))
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(errNoShortURLFound.Error()))
 		return

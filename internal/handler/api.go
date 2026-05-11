@@ -21,7 +21,7 @@ type apiHandler struct {
 
 func (s apiHandler) createShortJSON(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") != "application/json" {
-		logger.Log.Info(errContentType.Error(), zap.Error(errContentType))
+		logger.Log.Debug(errContentType.Error(), zap.Error(errContentType))
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(errContentType.Error()))
 		return
@@ -30,7 +30,7 @@ func (s apiHandler) createShortJSON(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(r.Body)
 	var req model.ShortenRequest
 	if err := dec.Decode(&req); err != nil {
-		logger.Log.Info(errCanNotDecode.Error(), zap.Error(err))
+		logger.Log.Debug(errCanNotDecode.Error(), zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(errCanNotDecode.Error()))
 		return
@@ -38,7 +38,7 @@ func (s apiHandler) createShortJSON(w http.ResponseWriter, r *http.Request) {
 
 	original, err := url.ParseRequestURI(req.URL)
 	if err != nil {
-		logger.Log.Info(errCanNotParseURL.Error(), zap.Error(err))
+		logger.Log.Debug(errCanNotParseURL.Error(), zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(errCanNotParseURL.Error()))
 		return
@@ -61,8 +61,17 @@ func (s apiHandler) createShortJSON(w http.ResponseWriter, r *http.Request) {
 		statusCode = http.StatusCreated
 	}
 
+	path, err := url.JoinPath(config.Config.BaseAddress, "/", short)
+	if err != nil {
+		logger.Log.Info(errCanNotCreate.Error(), zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(errCanNotCreate.Error()))
+
+		return
+	}
+
 	res := model.ShortenResponse{
-		Result: config.Config.BaseAddress + "/" + short,
+		Result: path,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
@@ -78,7 +87,7 @@ func (s apiHandler) createShortJSON(w http.ResponseWriter, r *http.Request) {
 
 func (s apiHandler) createShortJSONBatch(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") != "application/json" {
-		logger.Log.Info(errContentType.Error(), zap.Error(errContentType))
+		logger.Log.Debug(errContentType.Error(), zap.Error(errContentType))
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(errContentType.Error()))
 		return
@@ -87,7 +96,7 @@ func (s apiHandler) createShortJSONBatch(w http.ResponseWriter, r *http.Request)
 	dec := json.NewDecoder(r.Body)
 	var req model.BatchShortenRequest
 	if err := dec.Decode(&req); err != nil {
-		logger.Log.Info(errCanNotDecode.Error(), zap.Error(err))
+		logger.Log.Debug(errCanNotDecode.Error(), zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(errCanNotDecode.Error()))
 		return
@@ -97,7 +106,7 @@ func (s apiHandler) createShortJSONBatch(w http.ResponseWriter, r *http.Request)
 	for _, instance := range req {
 		original, err := url.ParseRequestURI(instance.OriginalURL)
 		if err != nil {
-			logger.Log.Info(errCanNotParseURL.Error(), zap.Error(err))
+			logger.Log.Debug(errCanNotParseURL.Error(), zap.Error(err))
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(errCanNotParseURL.Error()))
 			return

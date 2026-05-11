@@ -5,7 +5,10 @@ import (
 	"net/http"
 	"time"
 
+	"frrenzy/urlshortener/internal/util/logger"
+
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 )
 
 type pingHandler struct {
@@ -18,6 +21,7 @@ func (s pingHandler) pingDB(w http.ResponseWriter, r *http.Request) {
 
 	err := s.URLService.PingStorage(cancelCtx)
 	if err != nil {
+		logger.Log.Info("no connection", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
 		w.WriteHeader(http.StatusOK)

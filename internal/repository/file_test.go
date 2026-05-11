@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/url"
@@ -44,7 +43,7 @@ func Test_fileStorage_Add(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := s.Add(context.TODO(), model.NewLink(test.original, test.short))
+			err := s.Add(t.Context(), model.NewLink(test.original, test.short))
 			require.NoError(t, err, "should not fail")
 
 			storageFileContent, err := io.ReadAll(storageFile)
@@ -96,7 +95,7 @@ func Test_fileStorage_BatchAdd(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := s.BatchAdd(context.TODO(), links)
+			_, err := s.BatchAdd(t.Context(), links)
 			require.NoError(t, err, "should not fail")
 
 			storageFileContent, err := io.ReadAll(storageFile)
@@ -155,7 +154,7 @@ func Test_fileStorage_Get(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, gotErr := s.Get(context.TODO(), test.short)
+			got, gotErr := s.Get(t.Context(), test.short)
 
 			if !test.wantErr {
 				require.NoError(t, gotErr, "Should not fail")
@@ -178,6 +177,6 @@ func Test_fileStorage_PingStorage(t *testing.T) {
 	s := fileStorage{
 		file: storageFile,
 	}
-	err = s.PingStorage(context.TODO())
+	err = s.PingStorage(t.Context())
 	assert.ErrorIs(t, err, errDBNotConnected, "should fail")
 }

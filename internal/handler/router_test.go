@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -114,7 +113,7 @@ func Test_handlers_redirectToOriginal(t *testing.T) {
 	)
 
 	storage := repository.NewMapStorage()
-	storage.Add(context.TODO(), model.NewLink(originalURL, shortURL))
+	storage.Add(t.Context(), model.NewLink(originalURL, shortURL))
 	services := Services{
 		URLService: service.NewShortenerService(storage),
 	}

@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"context"
 	"net/url"
 	"testing"
 
@@ -32,7 +31,7 @@ func Test_mapStorage_Add(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			s := NewMapStorage()
-			s.Add(context.TODO(), model.NewLink(test.original, test.short))
+			s.Add(t.Context(), model.NewLink(test.original, test.short))
 
 			assert.Equal(t, expectedLink, s.storage[test.short])
 		})
@@ -66,7 +65,7 @@ func Test_mapStorage_BatchAdd(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			s := NewMapStorage()
-			_, err := s.BatchAdd(context.TODO(), links)
+			_, err := s.BatchAdd(t.Context(), links)
 			require.NoError(t, err, "should not fail")
 
 			assert.Equal(t, 2, len(s.storage), "should have 2 records")
@@ -108,7 +107,7 @@ func Test_mapStorage_Get(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, gotErr := s.Get(context.TODO(), test.short)
+			got, gotErr := s.Get(t.Context(), test.short)
 
 			if !test.wantErr {
 				require.NoError(t, gotErr, "Should not fail")
@@ -123,6 +122,6 @@ func Test_mapStorage_Get(t *testing.T) {
 
 func Test_mapStorage_PingStorage(t *testing.T) {
 	s := NewMapStorage()
-	err := s.PingStorage(context.TODO())
+	err := s.PingStorage(t.Context())
 	assert.ErrorIs(t, err, errDBNotConnected, "should fail")
 }

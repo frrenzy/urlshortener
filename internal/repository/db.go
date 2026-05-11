@@ -3,7 +3,9 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net/url"
+	"strings"
 
 	"frrenzy/urlshortener/internal/model"
 )
@@ -13,15 +15,15 @@ type dbStorage struct {
 	db *sql.DB
 }
 
-const insertQuery = `
-  INSERT INTO links
-	    (uuid, short_url, original_url)
-	VALUES
-	    ($1, $2, $3)
-	ON CONFLICT DO NOTHING`
-
 func (s *dbStorage) Add(ctx context.Context, l model.Link) error {
-	res, err := s.db.ExecContext(ctx, insertQuery, l.UUID, l.ShortURL, l.OriginalURL)
+	res, err := s.db.ExecContext(ctx, `
+		INSERT INTO links
+		    (uuid, short_url, original_url)
+		VALUES
+		    ($1, $2, $3)
+		ON CONFLICT DO NOTHING`,
+		l.UUID, l.ShortURL, l.OriginalURL,
+	)
 	if err != nil {
 		return err
 	}
@@ -34,33 +36,28 @@ func (s *dbStorage) Add(ctx context.Context, l model.Link) error {
 }
 
 func (s *dbStorage) BatchAdd(ctx context.Context, links []model.Link) ([]model.Link, error) {
-	tx, err := s.db.Begin()
+	valueStrings := make([]string, 0, len(links))
+	valueArgs := make([]any, 0, len(links)*3)
+	for i, link := range links {
+		valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d, $%d)", i*3+1, i*3+2, i*3+3))
+		valueArgs = append(valueArgs, link.UUID)
+		valueArgs = append(valueArgs, link.ShortURL)
+		valueArgs = append(valueArgs, link.OriginalURL)
+	}
+	query := fmt.Sprintf(`
+		INSERT INTO links
+		    (uuid, short_url, original_url)
+		VALUES %s`,
+		strings.Join(valueStrings, ","))
+	res, err := s.db.ExecContext(ctx, query, valueArgs...)
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
-	sttm, err := tx.PrepareContext(ctx, insertQuery)
-	if err != nil {
-		return nil, err
-	}
-	defer sttm.Close()
 
-	insertedRows := 0
-	for _, link := range links {
-		res, err := sttm.ExecContext(ctx, link.UUID, link.ShortURL, link.OriginalURL)
-		if err != nil {
-			return nil, err
-		}
-
-		inserted, _ := res.RowsAffected()
-		insertedRows += int(inserted)
+	if rows, _ := res.RowsAffected(); rows != int64(len(links)) {
+		return nil, fmt.Errorf("insert error")
 	}
 
-	if insertedRows != len(links) {
-		return nil, ErrDBExisting
-	}
-
-	tx.Commit()
 	return links, nil
 }
 
