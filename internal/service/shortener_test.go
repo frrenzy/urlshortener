@@ -47,7 +47,58 @@ func Test_shortenerService_CreateShortURL(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, gotErr := service.CreateShortURL(test.original)
+			got, gotErr := service.CreateShortURL(t.Context(), test.original)
+
+			require.NoError(t, gotErr, "should not fail")
+
+			assert.Equal(t, test.want, got)
+		})
+	}
+}
+
+func Test_shortenerService_BatchCreateShortURL(t *testing.T) {
+	repository := repository.NewMapStorage()
+	service := ShortenerService{
+		storage:   repository,
+		generator: mockGenerator{},
+	}
+
+	firstOriginal := url.URL{
+		Host: "domain.com",
+	}
+	firstID := "first"
+	firstExpectedLink := model.NewLinkWithUUID(firstOriginal, shortURL, firstID)
+	secondOriginal := url.URL{
+		Host: "another-domain.com",
+	}
+	secondID := "second"
+	secondExpectedLink := model.NewLinkWithUUID(secondOriginal, shortURL, secondID)
+	expectedLinks := []model.Link{firstExpectedLink, secondExpectedLink}
+
+	tests := []struct {
+		name  string
+		input []URLBatchInstance
+		want  []model.Link
+	}{
+		{
+			name: "simple test",
+			input: []URLBatchInstance{
+				{
+					Original:      firstOriginal,
+					CorrelationID: firstID,
+				},
+				{
+					Original:      secondOriginal,
+					CorrelationID: secondID,
+				},
+			},
+			want: expectedLinks,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, gotErr := service.BatchCreateShortURL(t.Context(), test.input)
 
 			require.NoError(t, gotErr, "should not fail")
 
@@ -58,7 +109,7 @@ func Test_shortenerService_CreateShortURL(t *testing.T) {
 
 func Test_shortenerService_GetOriginalURL(t *testing.T) {
 	repository := repository.NewMapStorage()
-	repository.Add(model.NewLink(originalURL, shortURL))
+	repository.Add(t.Context(), model.NewLink(originalURL, shortURL))
 	service := ShortenerService{
 		storage:   repository,
 		generator: mockGenerator{},
@@ -86,7 +137,7 @@ func Test_shortenerService_GetOriginalURL(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, gotErr := service.GetOriginalURL(test.short)
+			got, gotErr := service.GetOriginalURL(t.Context(), test.short)
 
 			if !test.wantErr {
 				require.NoError(t, gotErr, "Should not fail")

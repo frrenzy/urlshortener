@@ -1,8 +1,10 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 
@@ -17,7 +19,7 @@ type fileStorage struct {
 	file *os.File
 }
 
-func (s *fileStorage) Add(l model.Link) error {
+func (s *fileStorage) Add(ctx context.Context, l model.Link) error {
 	data, err := s.ReadAll()
 	if err != nil {
 		return err
@@ -28,7 +30,18 @@ func (s *fileStorage) Add(l model.Link) error {
 	return s.WriteAll(data)
 }
 
-func (s *fileStorage) Get(short string) (*model.Link, error) {
+func (s *fileStorage) BatchAdd(ctx context.Context, links []model.Link) ([]model.Link, error) {
+	data, err := s.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	data = append(data, links...)
+
+	return links, s.WriteAll(data)
+}
+
+func (s *fileStorage) Get(ctx context.Context, short string) (*model.Link, error) {
 	data, err := s.ReadAll()
 	if err != nil {
 		return &model.Link{}, err
@@ -40,7 +53,23 @@ func (s *fileStorage) Get(short string) (*model.Link, error) {
 		}
 	}
 
-	return &model.Link{}, errNotFound
+	return &model.Link{}, errDBNotFound
+}
+
+func (s *fileStorage) GetByOriginal(ctx context.Context, original url.URL) (*model.Link, error) {
+	data, err := s.ReadAll()
+	if err != nil {
+		return &model.Link{}, err
+	}
+
+	urlToCompare := model.URL{URL: original}
+	for _, link := range data {
+		if link.OriginalURL == urlToCompare {
+			return &link, nil
+		}
+	}
+
+	return &model.Link{}, errDBNotFound
 }
 
 func (s *fileStorage) ReadAll() ([]model.Link, error) {
@@ -97,6 +126,10 @@ func (s *fileStorage) WriteAll(data []model.Link) error {
 
 func (s *fileStorage) Close() {
 	s.file.Close()
+}
+
+func (s *fileStorage) PingStorage(ctx context.Context) error {
+	return errDBNotConnected
 }
 
 func NewFileStorage(path string) *fileStorage {

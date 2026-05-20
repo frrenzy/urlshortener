@@ -2,4 +2,8 @@ package repository
 
 import "errors"
 
-var errNotFound = errors.New("not found")
+var (
+	errDBNotFound     = errors.New("not found")
+	ErrDBExisting     = errors.New("already exists in db")
+	errDBNotConnected = errors.New("no db connection")
+)

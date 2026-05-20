@@ -15,7 +15,7 @@ func run() error {
 	config.Initialize()
 	logger.Initialize(logger.DebugLevel)
 
-	storage := repository.NewFileStorage(config.Config.FileStoragePath)
+	storage := repository.NewStorage()
 	defer storage.Close()
 
 	services := handler.Services{

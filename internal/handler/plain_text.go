@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
 
 	"frrenzy/urlshortener/internal/config"
+	"frrenzy/urlshortener/internal/service"
 	"frrenzy/urlshortener/internal/util/logger"
 
 	"github.com/go-chi/chi/v5"
@@ -19,7 +21,7 @@ type plainHandler struct {
 func (s plainHandler) createShort(w http.ResponseWriter, r *http.Request) {
 	urlBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		logger.Log.Info(errCanNotDecode.Error(), zap.Error(errContentType))
+		logger.Log.Debug(errCanNotDecode.Error(), zap.Error(errContentType))
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(errCanNotDecode.Error()))
 		return
@@ -27,23 +29,42 @@ func (s plainHandler) createShort(w http.ResponseWriter, r *http.Request) {
 
 	original, err := url.ParseRequestURI(string(urlBytes))
 	if err != nil {
-		logger.Log.Info(errCanNotParseURL.Error(), zap.Error(err))
+		logger.Log.Debug(errCanNotParseURL.Error(), zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(errCanNotParseURL.Error()))
 		return
 	}
 
-	short, err := s.URLService.CreateShortURL(*original)
+	var statusCode int
+	short, err := s.URLService.CreateShortURL(r.Context(), *original)
+	if err != nil {
+
+		if !errors.Is(err, service.ErrLinkAlreadyExists) {
+			logger.Log.Info(errCanNotCreate.Error(), zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(errCanNotCreate.Error()))
+
+			return
+		}
+
+		logger.Log.Info(err.Error(), zap.Error(err))
+		statusCode = http.StatusConflict
+	} else {
+		statusCode = http.StatusCreated
+	}
+
+	path, err := url.JoinPath(config.Config.BaseAddress, "/", short)
 	if err != nil {
 		logger.Log.Info(errCanNotCreate.Error(), zap.Error(err))
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(errCanNotCreate.Error()))
+
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
+	w.WriteHeader(statusCode)
 	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte(config.Config.BaseAddress + "/" + short))
+	w.Write([]byte(path))
 }
 
 func (s plainHandler) redirectToOriginal(w http.ResponseWriter, r *http.Request) {
@@ -54,9 +75,9 @@ func (s plainHandler) redirectToOriginal(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	original, err := s.URLService.GetOriginalURL(short)
+	original, err := s.URLService.GetOriginalURL(r.Context(), short)
 	if err != nil {
-		logger.Log.Info(errNoShortURLFound.Error(), zap.Error(errNoShortURLFound))
+		logger.Log.Debug(errNoShortURLFound.Error(), zap.Error(errNoShortURLFound))
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(errNoShortURLFound.Error()))
 		return

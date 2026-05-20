@@ -113,7 +113,7 @@ func Test_handlers_redirectToOriginal(t *testing.T) {
 	)
 
 	storage := repository.NewMapStorage()
-	storage.Add(model.NewLink(originalURL, shortURL))
+	storage.Add(t.Context(), model.NewLink(originalURL, shortURL))
 	services := Services{
 		URLService: service.NewShortenerService(storage),
 	}
@@ -308,6 +308,133 @@ func Test_handlers_createShortJSON(t *testing.T) {
 				require.NoError(t, err, "json parsing error")
 
 				assert.Equal(t, true, strings.HasPrefix(resp.Result, config.Config.BaseAddress), "wrong response with short URL")
+			}
+		})
+	}
+}
+
+func Test_handlers_createShortJSONBatch(t *testing.T) {
+	storage := repository.NewMapStorage()
+	services := Services{
+		URLService: service.NewShortenerService(storage),
+	}
+	router := NewRouter(services)
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	client := resty.NewWithClient(&http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return nil
+		},
+	}).SetBaseURL(server.URL)
+
+	tests := []struct {
+		name         string
+		method       string
+		body         any
+		expectedCode int
+		errorBody    string
+		contentType  string
+	}{
+		{
+			name:   "ok path",
+			method: http.MethodPost,
+			body: model.BatchShortenRequest{
+				{
+					CorrelationID: "1",
+					OriginalURL:   "https://domain1.com",
+				},
+				{
+					CorrelationID: "2",
+					OriginalURL:   "https://domain2.com",
+				},
+			},
+			contentType:  "application/json",
+			expectedCode: http.StatusCreated,
+		},
+		{
+			name:         "method get",
+			method:       http.MethodGet,
+			expectedCode: http.StatusMethodNotAllowed,
+		},
+		{
+			name:         "method put",
+			method:       http.MethodPut,
+			expectedCode: http.StatusMethodNotAllowed,
+		},
+		{
+			name:         "method patch",
+			method:       http.MethodPatch,
+			expectedCode: http.StatusMethodNotAllowed,
+		},
+		{
+			name:         "method delete",
+			method:       http.MethodDelete,
+			expectedCode: http.StatusMethodNotAllowed,
+		},
+		{
+			name:         "wrong Content-Type",
+			method:       http.MethodPost,
+			expectedCode: http.StatusBadRequest,
+			errorBody:    errContentType.Error(),
+		},
+		{
+			name:         "empty request body",
+			method:       http.MethodPost,
+			expectedCode: http.StatusBadRequest,
+			contentType:  "application/json",
+			errorBody:    errCanNotDecode.Error(),
+		},
+		{
+			name:         "not JSON request body",
+			body:         "https://domain.com",
+			method:       http.MethodPost,
+			expectedCode: http.StatusBadRequest,
+			contentType:  "application/json",
+			errorBody:    errCanNotDecode.Error(),
+		},
+		{
+			name:         "wrong JSON request body",
+			body:         `{ "url": "123" }`,
+			method:       http.MethodPost,
+			expectedCode: http.StatusBadRequest,
+			contentType:  "application/json",
+			errorBody:    errCanNotDecode.Error(),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := client.R().SetBody(test.body)
+			request.Method = test.method
+			request.URL = "/api/shorten/batch"
+			if test.contentType != "" {
+				request.Header.Set("Content-Type", test.contentType)
+			}
+			response, err := request.Send()
+
+			require.NoError(t, err, "request error")
+
+			assert.Equal(t, test.expectedCode, response.StatusCode())
+
+			switch test.expectedCode {
+			case http.StatusBadRequest:
+				assert.Equal(t, test.errorBody, response.String())
+			case http.StatusCreated:
+				var resp model.BatchShortenResponse
+				err = json.Unmarshal(response.Body(), &resp)
+
+				require.NoError(t, err, "json parsing error")
+
+				assert.Equal(t, len(resp), 2, "should have 2 objects in array")
+
+				body, ok := test.body.(model.BatchShortenRequest)
+				require.Equal(t, true, ok)
+
+				for i, res := range resp {
+					assert.Equal(t, true, strings.HasPrefix(res.ShortURL, config.Config.BaseAddress), "wrong response with short URL")
+					assert.Equal(t, body[i].CorrelationID, res.CorrelationID, "wrong response with short URL")
+				}
 			}
 		})
 	}

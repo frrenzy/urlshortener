@@ -43,7 +43,7 @@ func Test_fileStorage_Add(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := s.Add(model.NewLink(test.original, test.short))
+			err := s.Add(t.Context(), model.NewLink(test.original, test.short))
 			require.NoError(t, err, "should not fail")
 
 			storageFileContent, err := io.ReadAll(storageFile)
@@ -55,6 +55,59 @@ func Test_fileStorage_Add(t *testing.T) {
 
 			assert.Equal(t, 1, len(links), "should have 1 record")
 			assert.Equal(t, expectedLink, links[0])
+		})
+	}
+}
+
+func Test_fileStorage_BatchAdd(t *testing.T) {
+	firstOriginal := url.URL{
+		Host: "domain.com",
+	}
+	firstShort := "short-domain"
+	firstExpectedLink := model.NewLink(firstOriginal, firstShort)
+	secondOriginal := url.URL{
+		Host: "another-domain.com",
+	}
+	secondShort := "another-short-domain"
+	secondExpectedLink := model.NewLink(secondOriginal, secondShort)
+	links := []model.Link{firstExpectedLink, secondExpectedLink}
+
+	storageFile, err := os.CreateTemp(os.TempDir(), "storage.json")
+	if err != nil {
+		require.NoError(t, err, "could not create test storage file")
+	}
+	defer os.Remove(storageFile.Name())
+
+	s := fileStorage{
+		file: storageFile,
+	}
+
+	tests := []struct {
+		name  string
+		links []model.Link
+		short []string
+	}{
+		{
+			name:  "simple test",
+			links: links,
+			short: []string{firstShort, secondShort},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := s.BatchAdd(t.Context(), links)
+			require.NoError(t, err, "should not fail")
+
+			storageFileContent, err := io.ReadAll(storageFile)
+			require.NoError(t, err, "could not read test storage file")
+
+			var gotLinks []model.Link
+			err = json.Unmarshal(storageFileContent, &gotLinks)
+			require.NoError(t, err, "could not Unmarshal test storage file")
+
+			assert.Equal(t, 2, len(links), "should have 2 records")
+			assert.Equal(t, firstExpectedLink, gotLinks[0])
+			assert.Equal(t, secondExpectedLink, gotLinks[1])
 		})
 	}
 }
@@ -101,7 +154,7 @@ func Test_fileStorage_Get(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, gotErr := s.Get(test.short)
+			got, gotErr := s.Get(t.Context(), test.short)
 
 			if !test.wantErr {
 				require.NoError(t, gotErr, "Should not fail")
@@ -112,4 +165,18 @@ func Test_fileStorage_Get(t *testing.T) {
 			assert.Equal(t, test.want, *got)
 		})
 	}
+}
+
+func Test_fileStorage_PingStorage(t *testing.T) {
+	storageFile, err := os.CreateTemp(os.TempDir(), "storage.json")
+	if err != nil {
+		require.NoError(t, err, "could not create test storage file")
+	}
+	defer os.Remove(storageFile.Name())
+
+	s := fileStorage{
+		file: storageFile,
+	}
+	err = s.PingStorage(t.Context())
+	assert.ErrorIs(t, err, errDBNotConnected, "should fail")
 }

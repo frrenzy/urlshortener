@@ -2,6 +2,7 @@
 package model
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"net/url"
 )
@@ -25,6 +26,33 @@ func (u *URL) UnmarshalJSON(data []byte) error {
 	return err
 }
 
+func (u URL) Value() (driver.Value, error) {
+	return u.String(), nil
+}
+
+func (u *URL) Scan(value any) error {
+	if value == nil {
+		*u = URL{}
+		return nil
+	}
+
+	sv, err := driver.String.ConvertValue(value)
+	if err != nil {
+		return errDBScan
+	}
+
+	tmp, ok := sv.(string)
+	if !ok {
+		return errDBConvert
+	}
+
+	v, err := url.Parse(tmp)
+	if err == nil {
+		*u = URL{*v}
+	}
+	return err
+}
+
 type Link struct {
 	UUID        string `json:"uuid"`
 	ShortURL    string `json:"short_url"`
@@ -34,6 +62,14 @@ type Link struct {
 func NewLink(original url.URL, short string) Link {
 	return Link{
 		UUID:        short,
+		ShortURL:    short,
+		OriginalURL: URL{original},
+	}
+}
+
+func NewLinkWithUUID(original url.URL, short string, uuid string) Link {
+	return Link{
+		UUID:        uuid,
 		ShortURL:    short,
 		OriginalURL: URL{original},
 	}

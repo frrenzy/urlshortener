@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"context"
+	"net/url"
 	"sync"
 
 	"frrenzy/urlshortener/internal/model"
@@ -12,7 +14,7 @@ type mapStorage struct {
 	mu      *sync.RWMutex
 }
 
-func (s mapStorage) Add(l model.Link) error {
+func (s mapStorage) Add(ctx context.Context, l model.Link) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -21,15 +23,46 @@ func (s mapStorage) Add(l model.Link) error {
 	return nil
 }
 
-func (s mapStorage) Get(short string) (*model.Link, error) {
+func (s mapStorage) BatchAdd(ctx context.Context, links []model.Link) ([]model.Link, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, link := range links {
+		s.storage[link.ShortURL] = link
+	}
+
+	return links, nil
+}
+
+func (s mapStorage) Get(ctx context.Context, short string) (*model.Link, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	link, exists := s.storage[short]
 	if !exists {
-		return &model.Link{}, errNotFound
+		return &model.Link{}, errDBNotFound
 	}
 
 	return &link, nil
+}
+
+func (s mapStorage) GetByOriginal(ctx context.Context, original url.URL) (*model.Link, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	urlToCompare := model.URL{URL: original}
+	for _, link := range s.storage {
+		if link.OriginalURL == urlToCompare {
+			return &link, nil
+		}
+	}
+
+	return &model.Link{}, errDBNotFound
+}
+
+func (s mapStorage) Close() {}
+
+func (s mapStorage) PingStorage(ctx context.Context) error {
+	return errDBNotConnected
 }
 
 func NewMapStorage() mapStorage {

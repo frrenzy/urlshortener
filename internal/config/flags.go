@@ -13,5 +13,6 @@ const (
 func init() {
 	flag.StringVar(&programFlags.ServerAddress, "a", defaultAddress, "server address")
 	flag.StringVar(&programFlags.BaseAddress, "b", "http://"+defaultAddress, "base short URL address")
-	flag.StringVar(&programFlags.FileStoragePath, "f", "storage.json", "storage file path")
+	flag.StringVar(&programFlags.FileStoragePath, "f", "", "storage file path")
+	flag.StringVar(&programFlags.DatabaseDSN, "d", "", "database connection string")
 }
