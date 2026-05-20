@@ -18,11 +18,11 @@ type dbStorage struct {
 func (s *dbStorage) Add(ctx context.Context, l model.Link) error {
 	res, err := s.db.ExecContext(ctx, `
 		INSERT INTO links
-		    (uuid, short_url, original_url)
+		    (uuid, short_url, original_url, user_id)
 		VALUES
-		    ($1, $2, $3)
+		    ($1, $2, $3, $4)
 		ON CONFLICT DO NOTHING`,
-		l.UUID, l.ShortURL, l.OriginalURL,
+		l.UUID, l.ShortURL, l.OriginalURL, l.UserID,
 	)
 	if err != nil {
 		return err
@@ -39,14 +39,15 @@ func (s *dbStorage) BatchAdd(ctx context.Context, links []model.Link) ([]model.L
 	valueStrings := make([]string, 0, len(links))
 	valueArgs := make([]any, 0, len(links)*3)
 	for i, link := range links {
-		valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d, $%d)", i*3+1, i*3+2, i*3+3))
+		valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d, $%d, $%d)", i*4+1, i*4+2, i*4+3, i*4+4))
 		valueArgs = append(valueArgs, link.UUID)
 		valueArgs = append(valueArgs, link.ShortURL)
 		valueArgs = append(valueArgs, link.OriginalURL)
+		valueArgs = append(valueArgs, link.UserID)
 	}
 	query := fmt.Sprintf(`
 		INSERT INTO links
-		    (uuid, short_url, original_url)
+		    (uuid, short_url, original_url, user_id)
 		VALUES %s`,
 		strings.Join(valueStrings, ","))
 	res, err := s.db.ExecContext(ctx, query, valueArgs...)
@@ -103,6 +104,28 @@ func (s *dbStorage) Close() {
 
 func (s *dbStorage) PingStorage(ctx context.Context) error {
 	return s.db.PingContext(ctx)
+}
+
+func (s *dbStorage) GetByUser(ctx context.Context, userID int) ([]model.Link, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT short_url
+		     , original_url
+		FROM links
+		WHERE user_id = $1`, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var links []model.Link
+	for rows.Next() {
+		var link model.Link
+		if err := rows.Scan(&link.ShortURL, &link.OriginalURL); err != nil {
+			return nil, err
+		}
+		links = append(links, link)
+	}
+
+	return links, nil
 }
 
 func NewDBStorage(db *sql.DB) *dbStorage {

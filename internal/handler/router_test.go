@@ -13,6 +13,7 @@ import (
 	"frrenzy/urlshortener/internal/model"
 	"frrenzy/urlshortener/internal/repository"
 	"frrenzy/urlshortener/internal/service"
+	"frrenzy/urlshortener/internal/util/user"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
@@ -24,7 +25,7 @@ func Test_handlers_createShort(t *testing.T) {
 	services := Services{
 		URLService: service.NewShortenerService(storage),
 	}
-	router := NewRouter(services)
+	router := NewRouter(services, user.WithAuth)
 	server := httptest.NewServer(router)
 	defer server.Close()
 
@@ -113,11 +114,11 @@ func Test_handlers_redirectToOriginal(t *testing.T) {
 	)
 
 	storage := repository.NewMapStorage()
-	storage.Add(t.Context(), model.NewLink(originalURL, shortURL))
+	storage.Add(t.Context(), model.NewLink(originalURL, shortURL, -1))
 	services := Services{
 		URLService: service.NewShortenerService(storage),
 	}
-	router := NewRouter(services)
+	router := NewRouter(services, user.WithAuth)
 
 	server := httptest.NewServer(router)
 	defer server.Close()
@@ -206,7 +207,7 @@ func Test_handlers_createShortJSON(t *testing.T) {
 	services := Services{
 		URLService: service.NewShortenerService(storage),
 	}
-	router := NewRouter(services)
+	router := NewRouter(services, user.WithAuth)
 	server := httptest.NewServer(router)
 	defer server.Close()
 
@@ -318,7 +319,7 @@ func Test_handlers_createShortJSONBatch(t *testing.T) {
 	services := Services{
 		URLService: service.NewShortenerService(storage),
 	}
-	router := NewRouter(services)
+	router := NewRouter(services, user.WithAuth)
 	server := httptest.NewServer(router)
 	defer server.Close()
 
@@ -435,6 +436,106 @@ func Test_handlers_createShortJSONBatch(t *testing.T) {
 					assert.Equal(t, true, strings.HasPrefix(res.ShortURL, config.Config.BaseAddress), "wrong response with short URL")
 					assert.Equal(t, body[i].CorrelationID, res.CorrelationID, "wrong response with short URL")
 				}
+			}
+		})
+	}
+}
+
+func Test_handlers_getAllUserURLs(t *testing.T) {
+	repository := repository.NewMapStorage()
+	mockLinks := []model.Link{
+		model.NewLink(url.URL{Host: "domain.com"}, "wrong", 1),
+		model.NewLink(url.URL{Host: "domain1.com"}, "right", 2),
+		model.NewLink(url.URL{Host: "domain2.com"}, "also-right", 2),
+	}
+	for _, mockLink := range mockLinks {
+		repository.Add(t.Context(), mockLink)
+	}
+	services := Services{
+		URLService: service.NewShortenerService(repository),
+	}
+	router := NewRouter(services, user.WithAuth)
+
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	client := resty.NewWithClient(&http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return nil
+		},
+	}).SetBaseURL(server.URL)
+
+	tests := []struct {
+		name         string
+		method       string
+		userID       int
+		expectedCode int
+		expectedData model.UserURLsResponce
+		errorBody    string
+	}{
+		{
+			name:         "ok path",
+			method:       http.MethodGet,
+			userID:       2,
+			expectedCode: http.StatusOK,
+			expectedData: model.UserURLsResponce{
+				model.UserURLsResponceInstance{
+					ShortURL:    mockLinks[1].ShortURL,
+					OriginalURL: mockLinks[1].OriginalURL,
+				},
+				model.UserURLsResponceInstance{
+					ShortURL:    mockLinks[2].ShortURL,
+					OriginalURL: mockLinks[2].OriginalURL,
+				},
+			},
+		},
+		{
+			name:         "method post",
+			method:       http.MethodPost,
+			expectedCode: http.StatusMethodNotAllowed,
+		},
+		{
+			name:         "method put",
+			method:       http.MethodPut,
+			expectedCode: http.StatusMethodNotAllowed,
+		},
+		{
+			name:         "method patch",
+			method:       http.MethodPatch,
+			expectedCode: http.StatusMethodNotAllowed,
+		},
+		{
+			name:         "method delete",
+			method:       http.MethodDelete,
+			expectedCode: http.StatusMethodNotAllowed,
+		},
+		{
+			name:         "nonexistent path",
+			method:       http.MethodGet,
+			expectedCode: http.StatusBadRequest,
+			errorBody:    errNoShortURLFound.Error(),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := client.R()
+			request.Method = test.method
+			request.URL = "/api/user/urls"
+
+			response, _ := request.Send()
+
+			assert.Equal(t, test.expectedCode, response.StatusCode())
+
+			switch test.expectedCode {
+			case http.StatusBadRequest:
+				assert.Equal(t, test.errorBody, response.String())
+			case http.StatusOK:
+				var resp model.UserURLsResponce
+				err := json.Unmarshal(response.Body(), &resp)
+
+				require.NoError(t, err, "json parsing error")
+				assert.Equal(t, test.expectedData, resp)
 			}
 		})
 	}

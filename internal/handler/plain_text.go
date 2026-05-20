@@ -9,6 +9,7 @@ import (
 	"frrenzy/urlshortener/internal/config"
 	"frrenzy/urlshortener/internal/service"
 	"frrenzy/urlshortener/internal/util/logger"
+	"frrenzy/urlshortener/internal/util/user"
 
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
@@ -35,8 +36,16 @@ func (s plainHandler) createShort(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx := r.Context()
+	userID, err := user.GetUserFromContext(ctx)
+	if err != nil {
+		logger.Log.Info("context error")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	var statusCode int
-	short, err := s.URLService.CreateShortURL(r.Context(), *original)
+	short, err := s.URLService.CreateShortURL(r.Context(), *original, userID)
 	if err != nil {
 
 		if !errors.Is(err, service.ErrLinkAlreadyExists) {

@@ -65,6 +65,20 @@ func (s mapStorage) PingStorage(ctx context.Context) error {
 	return errDBNotConnected
 }
 
+func (s mapStorage) GetByUser(ctx context.Context, userID int) ([]model.Link, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var result []model.Link
+	for _, i := range s.storage {
+		if i.UserID == userID {
+			result = append(result, i)
+		}
+	}
+
+	return result, nil
+}
+
 func NewMapStorage() mapStorage {
 	instance := make(map[string]model.Link)
 

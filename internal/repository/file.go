@@ -132,6 +132,22 @@ func (s *fileStorage) PingStorage(ctx context.Context) error {
 	return errDBNotConnected
 }
 
+func (s *fileStorage) GetByUser(ctx context.Context, userID int) ([]model.Link, error) {
+	data, err := s.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	var result []model.Link
+	for _, i := range data {
+		if i.UserID == userID {
+			result = append(result, i)
+		}
+	}
+
+	return result, nil
+}
+
 func NewFileStorage(path string) *fileStorage {
 	p, err := filepath.Abs(path)
 	if err != nil {

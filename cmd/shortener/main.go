@@ -9,6 +9,7 @@ import (
 	"frrenzy/urlshortener/internal/service"
 	"frrenzy/urlshortener/internal/util/gzip"
 	"frrenzy/urlshortener/internal/util/logger"
+	"frrenzy/urlshortener/internal/util/user"
 )
 
 func run() error {
@@ -22,7 +23,11 @@ func run() error {
 		URLService: service.NewShortenerService(storage),
 	}
 
-	router := handler.NewRouter(services, logger.WithLogging, gzip.CreateGzipMiddleware([]string{"text/html", "application/json"}))
+	router := handler.NewRouter(services,
+		logger.WithLogging,
+		gzip.CreateGzipMiddleware([]string{"text/html", "application/json"}),
+		user.WithAuth,
+	)
 
 	logger.Log.Info("Server listening on " + config.Config.ServerAddress)
 	return http.ListenAndServe(config.Config.ServerAddress, router)

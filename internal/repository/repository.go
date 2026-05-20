@@ -16,6 +16,7 @@ type Repository interface {
 	BatchAdd(ctx context.Context, links []model.Link) ([]model.Link, error)
 	Get(ctx context.Context, short string) (*model.Link, error)
 	GetByOriginal(ctx context.Context, original url.URL) (*model.Link, error)
+	GetByUser(ctx context.Context, userID int) ([]model.Link, error)
 	Close()
 	PingStorage(ctx context.Context) error
 }

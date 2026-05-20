@@ -21,3 +21,10 @@ type BatchShortenResponseInstance struct {
 }
 
 type BatchShortenResponse []BatchShortenResponseInstance
+
+type UserURLsResponceInstance struct {
+	ShortURL    string `json:"short_url"`
+	OriginalURL URL    `json:"original_url"`
+}
+
+type UserURLsResponce []UserURLsResponceInstance

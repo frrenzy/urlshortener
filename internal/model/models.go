@@ -57,20 +57,23 @@ type Link struct {
 	UUID        string `json:"uuid"`
 	ShortURL    string `json:"short_url"`
 	OriginalURL URL    `json:"original_url"`
+	UserID      int
 }
 
-func NewLink(original url.URL, short string) Link {
+func NewLink(original url.URL, short string, userID int) Link {
 	return Link{
 		UUID:        short,
 		ShortURL:    short,
 		OriginalURL: URL{original},
+		UserID:      userID,
 	}
 }
 
-func NewLinkWithUUID(original url.URL, short string, uuid string) Link {
+func NewLinkWithUUID(original url.URL, short string, userID int, uuid string) Link {
 	return Link{
 		UUID:        uuid,
 		ShortURL:    short,
 		OriginalURL: URL{original},
+		UserID:      userID,
 	}
 }

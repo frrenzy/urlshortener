@@ -20,10 +20,10 @@ type URLBatchInstance struct {
 	CorrelationID string
 }
 
-func (s ShortenerService) CreateShortURL(ctx context.Context, original url.URL) (string, error) {
+func (s ShortenerService) CreateShortURL(ctx context.Context, original url.URL, userID int) (string, error) {
 	short := s.generator.generateShort()
 
-	err := s.storage.Add(ctx, model.NewLink(original, short))
+	err := s.storage.Add(ctx, model.NewLink(original, short, userID))
 	if err != nil {
 		if !errors.Is(err, repository.ErrDBExisting) {
 			return "", err
@@ -49,11 +49,11 @@ func (s ShortenerService) GetOriginalURL(ctx context.Context, short string) (str
 	return link.OriginalURL.String(), nil
 }
 
-func (s ShortenerService) BatchCreateShortURL(ctx context.Context, urls []URLBatchInstance) ([]model.Link, error) {
+func (s ShortenerService) BatchCreateShortURL(ctx context.Context, urls []URLBatchInstance, userID int) ([]model.Link, error) {
 	var links []model.Link
 	for _, instance := range urls {
 		short := s.generator.generateShort()
-		links = append(links, model.NewLinkWithUUID(instance.Original, short, instance.CorrelationID))
+		links = append(links, model.NewLinkWithUUID(instance.Original, short, userID, instance.CorrelationID))
 	}
 
 	result, err := s.storage.BatchAdd(ctx, links)
@@ -66,6 +66,10 @@ func (s ShortenerService) BatchCreateShortURL(ctx context.Context, urls []URLBat
 
 func (s ShortenerService) PingStorage(ctx context.Context) error {
 	return s.storage.PingStorage(ctx)
+}
+
+func (s ShortenerService) GetByUser(ctx context.Context, userID int) ([]model.Link, error) {
+	return s.storage.GetByUser(ctx, userID)
 }
 
 func NewShortenerService(repository repository.Repository) ShortenerService {
