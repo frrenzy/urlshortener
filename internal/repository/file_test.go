@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"slices"
 	"testing"
 
 	"frrenzy/urlshortener/internal/model"
@@ -196,16 +197,14 @@ func Test_fileStorage_GetByUser(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "simple test",
-			userID:  2,
-			want:    []model.Link{mockLinks[1], mockLinks[2]},
-			wantErr: false,
+			name:   "simple test",
+			userID: 2,
+			want:   []model.Link{mockLinks[1], mockLinks[2]},
 		},
 		{
-			name:    "nonexistent key",
-			userID:  10,
-			want:    []model.Link{},
-			wantErr: true,
+			name:   "nonexistent key",
+			userID: 10,
+			want:   []model.Link{},
 		},
 	}
 
@@ -213,13 +212,62 @@ func Test_fileStorage_GetByUser(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			got, gotErr := s.GetByUser(t.Context(), test.userID)
 
-			if !test.wantErr {
-				require.NoError(t, gotErr, "Should not fail")
-			} else {
-				require.Error(t, gotErr, "Should fail")
-			}
+			require.NoError(t, gotErr, "Should not fail")
 
 			assert.Equal(t, test.want, got)
+		})
+	}
+}
+
+func Test_fileStorage_DeleteByUser(t *testing.T) {
+	mockLinks := []model.Link{
+		model.NewLink(url.URL{Host: "domain.com"}, "wrong", 1),
+		model.NewLink(url.URL{Host: "domain1.com"}, "right", 2),
+		model.NewLink(url.URL{Host: "domain2.com"}, "also-right", 2),
+	}
+
+	storageFile, err := os.CreateTemp(os.TempDir(), "storage.json")
+	if err != nil {
+		require.NoError(t, err, "could not create test storage file")
+	}
+	defer os.Remove(storageFile.Name())
+
+	storage, err := json.Marshal(mockLinks)
+	require.NoError(t, err, "could not Marshal test storage data")
+	_, err = storageFile.Write(storage)
+	require.NoError(t, err, "could not write test storage file")
+
+	s := fileStorage{
+		file: storageFile,
+	}
+
+	tests := []struct {
+		name        string
+		userID      int
+		wantDeleted []string
+	}{
+		{
+			name:        "simple test",
+			userID:      2,
+			wantDeleted: []string{"right"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			gotErr := s.DeleteByUser(t.Context(), test.userID, test.wantDeleted)
+
+			require.NoError(t, gotErr, "Should not fail")
+
+			data, err := s.readAll()
+			require.NoError(t, err, "should not fail")
+			for _, link := range data {
+				if slices.Contains(test.wantDeleted, link.ShortURL) {
+					assert.Equal(t, true, link.DeletedFlag, "should be deleted")
+				} else {
+					assert.Equal(t, false, link.DeletedFlag, "should be deleted")
+				}
+			}
 		})
 	}
 }

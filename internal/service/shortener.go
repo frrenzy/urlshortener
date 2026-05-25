@@ -46,6 +46,10 @@ func (s ShortenerService) GetOriginalURL(ctx context.Context, short string) (str
 		return "", err
 	}
 
+	if link.DeletedFlag {
+		return "", ErrLinkIsDeleted
+	}
+
 	return link.OriginalURL.String(), nil
 }
 
@@ -70,6 +74,10 @@ func (s ShortenerService) PingStorage(ctx context.Context) error {
 
 func (s ShortenerService) GetByUser(ctx context.Context, userID int) ([]model.Link, error) {
 	return s.storage.GetByUser(ctx, userID)
+}
+
+func (s ShortenerService) DeleteByUser(ctx context.Context, userID int, shortURLs []string) error {
+	return s.storage.DeleteByUser(ctx, userID, shortURLs)
 }
 
 func NewShortenerService(repository repository.Repository) ShortenerService {

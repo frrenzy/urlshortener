@@ -21,23 +21,20 @@ func WithAuth(h http.Handler) http.Handler {
 		userCookie, err := r.Cookie(userCookieName)
 		if err != nil {
 			currentID += 1
-			newUserJWT, err := buildJWTString(currentID)
+			newUserCookie, err := CreateUserCookie(currentID)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 
-			userCookie = &http.Cookie{
-				Name:     userCookieName,
-				Value:    newUserJWT,
-				Expires:  time.Now().Add(userAuthLifetime),
-				Secure:   true,
-				SameSite: http.SameSiteStrictMode,
-				HttpOnly: true,
-			}
+			userCookie = newUserCookie
 		}
 
 		userID := getUserID(userCookie.Value)
+		if userID == -1 {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 
 		userContext := context.WithValue(r.Context(), UserContextKey, userID)
 		r = r.WithContext(userContext)

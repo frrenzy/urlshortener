@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"frrenzy/urlshortener/internal/model"
@@ -67,12 +68,13 @@ func (s *dbStorage) Get(ctx context.Context, short string) (*model.Link, error) 
 		SELECT uuid
 		     , short_url
 		     , original_url
+		     , is_deleted
 		FROM links
 		WHERE short_url = $1`, short)
 
 	link := model.Link{}
 
-	err := row.Scan(&link.UUID, &link.ShortURL, &link.OriginalURL)
+	err := row.Scan(&link.UUID, &link.ShortURL, &link.OriginalURL, &link.DeletedFlag)
 	if err != nil {
 		return &model.Link{}, errDBNotFound
 	}
@@ -85,12 +87,13 @@ func (s *dbStorage) GetByOriginal(ctx context.Context, original url.URL) (*model
 		SELECT uuid
 		     , short_url
 		     , original_url
+		     , is_deleted
 		FROM links
 		WHERE original_url = $1`, model.URL{URL: original})
 
 	link := model.Link{}
 
-	err := row.Scan(&link.UUID, &link.ShortURL, &link.OriginalURL)
+	err := row.Scan(&link.UUID, &link.ShortURL, &link.OriginalURL, &link.DeletedFlag)
 	if err != nil {
 		return &model.Link{}, errDBNotFound
 	}
@@ -126,6 +129,27 @@ func (s *dbStorage) GetByUser(ctx context.Context, userID int) ([]model.Link, er
 	}
 
 	return links, nil
+}
+
+func (s *dbStorage) DeleteByUser(ctx context.Context, userID int, shortURLs []string) error {
+	valueStrings := make([]string, 0, len(shortURLs))
+	valueArgs := make([]any, 0, len(shortURLs)+1)
+	valueArgs = append(valueArgs, strconv.Itoa(userID))
+	for i, short := range shortURLs {
+		valueStrings = append(valueStrings, fmt.Sprintf("$%d", i+2))
+		valueArgs = append(valueArgs, short)
+	}
+	query := fmt.Sprintf(`
+		UPDATE links
+		SET is_deleted = TRUE
+		WHERE user_id = $1
+		AND short_url in (%s)`,
+		strings.Join(valueStrings, ","),
+	)
+
+	_, err := s.db.ExecContext(ctx, query, valueArgs...)
+
+	return err
 }
 
 func NewDBStorage(db *sql.DB) *dbStorage {

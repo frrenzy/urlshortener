@@ -86,6 +86,11 @@ func (s plainHandler) redirectToOriginal(w http.ResponseWriter, r *http.Request)
 
 	original, err := s.URLService.GetOriginalURL(r.Context(), short)
 	if err != nil {
+		if errors.Is(err, service.ErrLinkIsDeleted) {
+			w.WriteHeader(http.StatusGone)
+			return
+		}
+
 		logger.Log.Debug(errNoShortURLFound.Error(), zap.Error(errNoShortURLFound))
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(errNoShortURLFound.Error()))

@@ -28,3 +28,5 @@ type UserURLsResponceInstance struct {
 }
 
 type UserURLsResponce []UserURLsResponceInstance
+
+type DeleteUserURLsRequest []string

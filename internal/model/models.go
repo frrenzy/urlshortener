@@ -58,6 +58,7 @@ type Link struct {
 	ShortURL    string `json:"short_url"`
 	OriginalURL URL    `json:"original_url"`
 	UserID      int
+	DeletedFlag bool
 }
 
 func NewLink(original url.URL, short string, userID int) Link {
@@ -66,6 +67,7 @@ func NewLink(original url.URL, short string, userID int) Link {
 		ShortURL:    short,
 		OriginalURL: URL{original},
 		UserID:      userID,
+		DeletedFlag: false,
 	}
 }
 
@@ -75,5 +77,6 @@ func NewLinkWithUUID(original url.URL, short string, userID int, uuid string) Li
 		ShortURL:    short,
 		OriginalURL: URL{original},
 		UserID:      userID,
+		DeletedFlag: false,
 	}
 }

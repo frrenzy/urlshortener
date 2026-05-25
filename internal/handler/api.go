@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -203,6 +204,29 @@ func (s apiHandler) getAllUserURLs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s apiHandler) deleteAllUserURLs(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID, err := user.GetUserFromContext(ctx)
+	if err != nil {
+		logger.Log.Info("context error")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	dec := json.NewDecoder(r.Body)
+	var req model.DeleteUserURLsRequest
+	if err := dec.Decode(&req); err != nil {
+		logger.Log.Debug(errCanNotDecode.Error(), zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(errCanNotDecode.Error()))
+		return
+	}
+
+	go s.URLService.DeleteByUser(context.Background(), userID, req)
+
+	w.WriteHeader(http.StatusAccepted)
+}
+
 func newAPIRouter(services Services) chi.Router {
 	router := chi.NewRouter()
 	apiHandlers := apiHandler{Services: services}
@@ -211,6 +235,7 @@ func newAPIRouter(services Services) chi.Router {
 		r.Post(`/shorten`, apiHandlers.createShortJSON)
 		r.Post(`/shorten/batch`, apiHandlers.createShortJSONBatch)
 		r.Get(`/user/urls`, apiHandlers.getAllUserURLs)
+		r.Delete(`/user/urls`, apiHandlers.deleteAllUserURLs)
 	})
 
 	return router

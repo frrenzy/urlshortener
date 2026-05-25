@@ -3,6 +3,7 @@ package service
 import (
 	"net/url"
 	"testing"
+	"time"
 
 	"frrenzy/urlshortener/internal/model"
 	"frrenzy/urlshortener/internal/repository"
@@ -166,22 +167,19 @@ func Test_shortenerService_GetByUser(t *testing.T) {
 	}
 
 	tests := []struct {
-		name    string
-		userID  int
-		want    string
-		wantErr bool
+		name   string
+		userID int
+		want   []model.Link
 	}{
 		{
-			name:    "simple test",
-			userID:  2,
-			want:    originalURL.String(),
-			wantErr: false,
+			name:   "simple test",
+			userID: 2,
+			want:   []model.Link{mockLinks[1], mockLinks[2]},
 		},
 		{
-			name:    "nonexistent key",
-			userID:  10,
-			want:    "",
-			wantErr: true,
+			name:   "nonexistent key",
+			userID: 10,
+			want:   []model.Link{},
 		},
 	}
 
@@ -189,13 +187,54 @@ func Test_shortenerService_GetByUser(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			got, gotErr := service.GetByUser(t.Context(), test.userID)
 
-			if !test.wantErr {
-				require.NoError(t, gotErr, "Should not fail")
-			} else {
-				require.Error(t, gotErr, "Should fail")
-			}
+			require.NoError(t, gotErr, "Should not fail")
 
 			assert.Equal(t, test.want, got)
+		})
+	}
+}
+
+func Test_shortenerService_DeleteByUser(t *testing.T) {
+	repository := repository.NewMapStorage()
+	mockLinks := []model.Link{
+		model.NewLink(url.URL{Host: "domain.com"}, "wrong", 1),
+		model.NewLink(url.URL{Host: "domain1.com"}, "right", 2),
+		model.NewLink(url.URL{Host: "domain2.com"}, "also-right", 2),
+	}
+	for _, mockLink := range mockLinks {
+		repository.Add(t.Context(), mockLink)
+	}
+	service := ShortenerService{
+		storage:   repository,
+		generator: mockGenerator{},
+	}
+
+	tests := []struct {
+		name        string
+		userID      int
+		wantDeleted []string
+	}{
+		{
+			name:        "simple test",
+			userID:      2,
+			wantDeleted: []string{"right"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			gotErr := service.DeleteByUser(t.Context(), test.userID, test.wantDeleted)
+
+			require.NoError(t, gotErr, "Should not fail")
+
+			ticker := time.NewTicker(1 * time.Second)
+			defer ticker.Stop()
+
+			<-ticker.C
+
+			deletedLink, err := repository.Get(t.Context(), "right")
+			require.NoError(t, err, "should not fail")
+			assert.Equal(t, true, deletedLink.DeletedFlag, "should be deleted")
 		})
 	}
 }

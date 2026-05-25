@@ -1,7 +1,9 @@
 package repository
 
 import (
+	"encoding/json"
 	"net/url"
+	"slices"
 	"testing"
 
 	"frrenzy/urlshortener/internal/model"
@@ -135,22 +137,19 @@ func Test_mapStorage_GetByUser(t *testing.T) {
 	}
 
 	tests := []struct {
-		name    string
-		userID  int
-		want    []model.Link
-		wantErr bool
+		name   string
+		userID int
+		want   []model.Link
 	}{
 		{
-			name:    "simple test",
-			userID:  2,
-			want:    []model.Link{mockLinks[1], mockLinks[2]},
-			wantErr: false,
+			name:   "simple test",
+			userID: 2,
+			want:   []model.Link{mockLinks[1], mockLinks[2]},
 		},
 		{
-			name:    "nonexistent key",
-			userID:  10,
-			want:    []model.Link{},
-			wantErr: true,
+			name:   "nonexistent key",
+			userID: 10,
+			want:   []model.Link{},
 		},
 	}
 
@@ -158,13 +157,57 @@ func Test_mapStorage_GetByUser(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			got, gotErr := s.GetByUser(t.Context(), test.userID)
 
-			if !test.wantErr {
-				require.NoError(t, gotErr, "Should not fail")
-			} else {
-				require.Error(t, gotErr, "Should fail")
-			}
+			require.NoError(t, gotErr, "Should not fail")
 
-			assert.Equal(t, test.want, got)
+			wantBytes, err := json.Marshal(test.want)
+			require.NoError(t, err, "should marshal json")
+			gotBytes, err := json.Marshal(got)
+			require.NoError(t, err, "should marshal json")
+
+			assert.Equal(t, string(wantBytes), string(gotBytes))
+		})
+	}
+}
+
+func Test_mapStorage_DeleteByUser(t *testing.T) {
+	mockLinks := []model.Link{
+		model.NewLink(url.URL{Host: "domain.com"}, "wrong", 1),
+		model.NewLink(url.URL{Host: "domain1.com"}, "right", 2),
+		model.NewLink(url.URL{Host: "domain2.com"}, "also-right", 2),
+	}
+
+	s := NewMapStorage()
+	s.storage = map[string]model.Link{
+		"wrong":      mockLinks[0],
+		"right":      mockLinks[1],
+		"also-right": mockLinks[2],
+	}
+
+	tests := []struct {
+		name        string
+		userID      int
+		wantDeleted []string
+	}{
+		{
+			name:        "simple test",
+			userID:      2,
+			wantDeleted: []string{"right"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			gotErr := s.DeleteByUser(t.Context(), test.userID, test.wantDeleted)
+
+			require.NoError(t, gotErr, "Should not fail")
+
+			for short, link := range s.storage {
+				if slices.Contains(test.wantDeleted, short) {
+					assert.Equal(t, true, link.DeletedFlag, "should be deleted")
+				} else {
+					assert.Equal(t, false, link.DeletedFlag, "should be deleted")
+				}
+			}
 		})
 	}
 }

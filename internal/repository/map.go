@@ -69,7 +69,7 @@ func (s mapStorage) GetByUser(ctx context.Context, userID int) ([]model.Link, er
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var result []model.Link
+	result := make([]model.Link, 0)
 	for _, i := range s.storage {
 		if i.UserID == userID {
 			result = append(result, i)
@@ -77,6 +77,25 @@ func (s mapStorage) GetByUser(ctx context.Context, userID int) ([]model.Link, er
 	}
 
 	return result, nil
+}
+
+func (s mapStorage) DeleteByUser(ctx context.Context, userID int, shortURLs []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, short := range shortURLs {
+		if link, ok := s.storage[short]; ok && link.UserID == userID {
+			s.storage[short] = model.Link{
+				OriginalURL: link.OriginalURL,
+				ShortURL:    link.ShortURL,
+				UserID:      userID,
+				DeletedFlag: true,
+				UUID:        link.UUID,
+			}
+		}
+	}
+
+	return nil
 }
 
 func NewMapStorage() mapStorage {
