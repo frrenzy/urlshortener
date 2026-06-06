@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	"frrenzy/urlshortener/internal/config"
 	"frrenzy/urlshortener/internal/handler"
@@ -9,6 +11,7 @@ import (
 	"frrenzy/urlshortener/internal/service"
 	"frrenzy/urlshortener/internal/util/gzip"
 	"frrenzy/urlshortener/internal/util/logger"
+	"frrenzy/urlshortener/internal/util/user"
 )
 
 func run() error {
@@ -18,11 +21,19 @@ func run() error {
 	storage := repository.NewStorage()
 	defer storage.Close()
 
+	urlService := service.NewShortenerService(storage, 10*time.Second)
+	go urlService.RunDeleteScheduler(context.Background())
+	defer urlService.Close()
+
 	services := handler.Services{
-		URLService: service.NewShortenerService(storage),
+		URLService: urlService,
 	}
 
-	router := handler.NewRouter(services, logger.WithLogging, gzip.CreateGzipMiddleware([]string{"text/html", "application/json"}))
+	router := handler.NewRouter(services,
+		logger.WithLogging,
+		gzip.CreateGzipMiddleware([]string{"text/html", "application/json"}),
+		user.WithAuth,
+	)
 
 	logger.Log.Info("Server listening on " + config.Config.ServerAddress)
 	return http.ListenAndServe(config.Config.ServerAddress, router)

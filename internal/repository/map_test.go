@@ -1,7 +1,9 @@
 package repository
 
 import (
+	"encoding/json"
 	"net/url"
+	"slices"
 	"testing"
 
 	"frrenzy/urlshortener/internal/model"
@@ -15,7 +17,7 @@ func Test_mapStorage_Add(t *testing.T) {
 		Host: "domain.com",
 	}
 	short := "short-domain"
-	expectedLink := model.NewLink(original, short)
+	expectedLink := model.NewLink(original, short, -1)
 
 	tests := []struct {
 		name     string
@@ -31,7 +33,7 @@ func Test_mapStorage_Add(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			s := NewMapStorage()
-			s.Add(t.Context(), model.NewLink(test.original, test.short))
+			s.Add(t.Context(), model.NewLink(test.original, test.short, -1))
 
 			assert.Equal(t, expectedLink, s.storage[test.short])
 		})
@@ -43,12 +45,12 @@ func Test_mapStorage_BatchAdd(t *testing.T) {
 		Host: "domain.com",
 	}
 	firstShort := "short-domain"
-	firstExpectedLink := model.NewLink(firstOriginal, firstShort)
+	firstExpectedLink := model.NewLink(firstOriginal, firstShort, -1)
 	secondOriginal := url.URL{
 		Host: "another-domain.com",
 	}
 	secondShort := "another-short-domain"
-	secondExpectedLink := model.NewLink(secondOriginal, secondShort)
+	secondExpectedLink := model.NewLink(secondOriginal, secondShort, -1)
 	links := []model.Link{firstExpectedLink, secondExpectedLink}
 
 	tests := []struct {
@@ -78,7 +80,7 @@ func Test_mapStorage_BatchAdd(t *testing.T) {
 func Test_mapStorage_Get(t *testing.T) {
 	mockLink := model.NewLink(url.URL{
 		Host: "domain.com",
-	}, "short-domain")
+	}, "short-domain", -1)
 
 	s := NewMapStorage()
 	s.storage = map[string]model.Link{
@@ -116,6 +118,96 @@ func Test_mapStorage_Get(t *testing.T) {
 			}
 
 			assert.Equal(t, test.want, *got)
+		})
+	}
+}
+
+func Test_mapStorage_GetByUser(t *testing.T) {
+	mockLinks := []model.Link{
+		model.NewLink(url.URL{Host: "domain.com"}, "wrong", 1),
+		model.NewLink(url.URL{Host: "domain1.com"}, "right", 2),
+		model.NewLink(url.URL{Host: "domain2.com"}, "also-right", 2),
+	}
+
+	s := NewMapStorage()
+	s.storage = map[string]model.Link{
+		"wrong":      mockLinks[0],
+		"right":      mockLinks[1],
+		"also-right": mockLinks[2],
+	}
+
+	tests := []struct {
+		name   string
+		userID int
+		want   []model.Link
+	}{
+		{
+			name:   "simple test",
+			userID: 2,
+			want:   []model.Link{mockLinks[1], mockLinks[2]},
+		},
+		{
+			name:   "nonexistent key",
+			userID: 10,
+			want:   []model.Link{},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, gotErr := s.GetByUser(t.Context(), test.userID)
+
+			require.NoError(t, gotErr, "Should not fail")
+
+			wantBytes, err := json.Marshal(test.want)
+			require.NoError(t, err, "should marshal json")
+			gotBytes, err := json.Marshal(got)
+			require.NoError(t, err, "should marshal json")
+
+			assert.Equal(t, string(wantBytes), string(gotBytes))
+		})
+	}
+}
+
+func Test_mapStorage_DeleteByUser(t *testing.T) {
+	mockLinks := []model.Link{
+		model.NewLink(url.URL{Host: "domain.com"}, "wrong", 1),
+		model.NewLink(url.URL{Host: "domain1.com"}, "right", 2),
+		model.NewLink(url.URL{Host: "domain2.com"}, "also-right", 2),
+	}
+
+	s := NewMapStorage()
+	s.storage = map[string]model.Link{
+		"wrong":      mockLinks[0],
+		"right":      mockLinks[1],
+		"also-right": mockLinks[2],
+	}
+
+	tests := []struct {
+		name        string
+		userID      int
+		wantDeleted []string
+	}{
+		{
+			name:        "simple test",
+			userID:      2,
+			wantDeleted: []string{"right"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			gotErr := s.DeleteByUser(t.Context(), test.userID, test.wantDeleted)
+
+			require.NoError(t, gotErr, "Should not fail")
+
+			for short, link := range s.storage {
+				if slices.Contains(test.wantDeleted, short) {
+					assert.Equal(t, true, link.DeletedFlag, "should be deleted")
+				} else {
+					assert.Equal(t, false, link.DeletedFlag, "should not be deleted")
+				}
+			}
 		})
 	}
 }

@@ -20,29 +20,29 @@ type fileStorage struct {
 }
 
 func (s *fileStorage) Add(ctx context.Context, l model.Link) error {
-	data, err := s.ReadAll()
+	data, err := s.readAll()
 	if err != nil {
 		return err
 	}
 
 	data = append(data, l)
 
-	return s.WriteAll(data)
+	return s.writeAll(data)
 }
 
 func (s *fileStorage) BatchAdd(ctx context.Context, links []model.Link) ([]model.Link, error) {
-	data, err := s.ReadAll()
+	data, err := s.readAll()
 	if err != nil {
 		return nil, err
 	}
 
 	data = append(data, links...)
 
-	return links, s.WriteAll(data)
+	return links, s.writeAll(data)
 }
 
 func (s *fileStorage) Get(ctx context.Context, short string) (*model.Link, error) {
-	data, err := s.ReadAll()
+	data, err := s.readAll()
 	if err != nil {
 		return &model.Link{}, err
 	}
@@ -57,7 +57,7 @@ func (s *fileStorage) Get(ctx context.Context, short string) (*model.Link, error
 }
 
 func (s *fileStorage) GetByOriginal(ctx context.Context, original url.URL) (*model.Link, error) {
-	data, err := s.ReadAll()
+	data, err := s.readAll()
 	if err != nil {
 		return &model.Link{}, err
 	}
@@ -72,7 +72,7 @@ func (s *fileStorage) GetByOriginal(ctx context.Context, original url.URL) (*mod
 	return &model.Link{}, errDBNotFound
 }
 
-func (s *fileStorage) ReadAll() ([]model.Link, error) {
+func (s *fileStorage) readAll() ([]model.Link, error) {
 	_, err := s.file.Seek(0, 0)
 	if err != nil {
 		return nil, err
@@ -96,7 +96,7 @@ func (s *fileStorage) ReadAll() ([]model.Link, error) {
 	return data, nil
 }
 
-func (s *fileStorage) WriteAll(data []model.Link) error {
+func (s *fileStorage) writeAll(data []model.Link) error {
 	if len(data) == 0 {
 		return nil
 	}
@@ -130,6 +130,42 @@ func (s *fileStorage) Close() {
 
 func (s *fileStorage) PingStorage(ctx context.Context) error {
 	return errDBNotConnected
+}
+
+func (s *fileStorage) GetByUser(ctx context.Context, userID int) ([]model.Link, error) {
+	data, err := s.readAll()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]model.Link, 0)
+	for _, i := range data {
+		if i.UserID == userID {
+			result = append(result, i)
+		}
+	}
+
+	return result, nil
+}
+
+func (s *fileStorage) DeleteByUser(ctx context.Context, userID int, shortURLs []string) error {
+	data, err := s.readAll()
+	if err != nil {
+		return err
+	}
+
+	result := make([]model.Link, 0)
+	for _, link := range data {
+		for _, short := range shortURLs {
+			if link.UserID == userID && link.ShortURL == short {
+				link.DeletedFlag = true
+				break
+			}
+		}
+		result = append(result, link)
+	}
+
+	return s.writeAll(result)
 }
 
 func NewFileStorage(path string) *fileStorage {
