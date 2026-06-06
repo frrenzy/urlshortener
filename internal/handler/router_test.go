@@ -24,7 +24,7 @@ import (
 func Test_handlers_createShort(t *testing.T) {
 	storage := repository.NewMapStorage()
 	services := Services{
-		URLService: service.NewShortenerService(storage),
+		URLService: service.NewShortenerService(storage, time.Second),
 	}
 	router := NewRouter(services, user.WithAuth)
 	server := httptest.NewServer(router)
@@ -117,7 +117,7 @@ func Test_handlers_redirectToOriginal(t *testing.T) {
 	storage := repository.NewMapStorage()
 	storage.Add(t.Context(), model.NewLink(originalURL, shortURL, -1))
 	services := Services{
-		URLService: service.NewShortenerService(storage),
+		URLService: service.NewShortenerService(storage, time.Second),
 	}
 	router := NewRouter(services, user.WithAuth)
 
@@ -206,7 +206,7 @@ func Test_handlers_redirectToOriginal(t *testing.T) {
 func Test_handlers_createShortJSON(t *testing.T) {
 	storage := repository.NewMapStorage()
 	services := Services{
-		URLService: service.NewShortenerService(storage),
+		URLService: service.NewShortenerService(storage, time.Second),
 	}
 	router := NewRouter(services, user.WithAuth)
 	server := httptest.NewServer(router)
@@ -318,7 +318,7 @@ func Test_handlers_createShortJSON(t *testing.T) {
 func Test_handlers_createShortJSONBatch(t *testing.T) {
 	storage := repository.NewMapStorage()
 	services := Services{
-		URLService: service.NewShortenerService(storage),
+		URLService: service.NewShortenerService(storage, time.Second),
 	}
 	router := NewRouter(services, user.WithAuth)
 	server := httptest.NewServer(router)
@@ -453,7 +453,7 @@ func Test_handlers_getAllUserURLs(t *testing.T) {
 		repository.Add(t.Context(), mockLink)
 	}
 	services := Services{
-		URLService: service.NewShortenerService(repository),
+		URLService: service.NewShortenerService(repository, time.Second),
 	}
 	router := NewRouter(services, user.WithAuth)
 
@@ -546,8 +546,12 @@ func Test_handlers_deleteAllUserURLs(t *testing.T) {
 	for _, mockLink := range mockLinks {
 		repository.Add(t.Context(), mockLink)
 	}
+	urlService := service.NewShortenerService(repository, time.Second)
+	go urlService.RunDeleteScheduler(t.Context())
+	defer urlService.Close()
+
 	services := Services{
-		URLService: service.NewShortenerService(repository),
+		URLService: urlService,
 	}
 	router := NewRouter(services, user.WithAuth)
 
@@ -590,7 +594,7 @@ func Test_handlers_deleteAllUserURLs(t *testing.T) {
 
 			assert.Equal(t, test.expectedCode, response.StatusCode())
 
-			ticker := time.NewTicker(1 * time.Second)
+			ticker := time.NewTicker(2 * time.Second)
 			defer ticker.Stop()
 
 			<-ticker.C

@@ -3,25 +3,25 @@ package user
 
 import (
 	"context"
+	"math/rand"
 	"net/http"
 	"time"
 )
 
-type ContextKey string
+type contextKey string
 
 const (
-	UserContextKey ContextKey = "user"
+	userContextKey contextKey = "user"
 	userCookieName string     = "user"
 )
 
-var currentID int = 1
+var generator *rand.Rand = rand.New(rand.NewSource(time.Now().Unix()))
 
 func WithAuth(h http.Handler) http.Handler {
 	userFn := func(w http.ResponseWriter, r *http.Request) {
 		userCookie, err := r.Cookie(userCookieName)
 		if err != nil {
-			currentID += 1
-			newUserCookie, err := CreateUserCookie(currentID)
+			newUserCookie, err := CreateUserCookie(int(generator.Int31()))
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
@@ -36,7 +36,7 @@ func WithAuth(h http.Handler) http.Handler {
 			return
 		}
 
-		userContext := context.WithValue(r.Context(), UserContextKey, userID)
+		userContext := context.WithValue(r.Context(), userContextKey, userID)
 		r = r.WithContext(userContext)
 
 		userCookie.Expires = time.Now().Add(userAuthLifetime)

@@ -158,15 +158,11 @@ func (s *fileStorage) DeleteByUser(ctx context.Context, userID int, shortURLs []
 	for _, link := range data {
 		for _, short := range shortURLs {
 			if link.UserID == userID && link.ShortURL == short {
-				result = append(result, model.Link{
-					OriginalURL: link.OriginalURL,
-					ShortURL:    link.ShortURL,
-					UserID:      userID,
-					DeletedFlag: true,
-					UUID:        link.UUID,
-				})
+				link.DeletedFlag = true
+				break
 			}
 		}
+		result = append(result, link)
 	}
 
 	return s.writeAll(result)

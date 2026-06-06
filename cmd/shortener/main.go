@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	"frrenzy/urlshortener/internal/config"
 	"frrenzy/urlshortener/internal/handler"
@@ -19,8 +21,12 @@ func run() error {
 	storage := repository.NewStorage()
 	defer storage.Close()
 
+	urlService := service.NewShortenerService(storage, 10*time.Second)
+	go urlService.RunDeleteScheduler(context.Background())
+	defer urlService.Close()
+
 	services := handler.Services{
-		URLService: service.NewShortenerService(storage),
+		URLService: urlService,
 	}
 
 	router := handler.NewRouter(services,

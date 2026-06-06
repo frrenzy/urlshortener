@@ -28,7 +28,7 @@ func buildJWTString(userID int) (string, error) {
 
 	tokenString, err := token.SignedString([]byte(secretKey))
 	if err != nil {
-		return ``, nil
+		return ``, err
 	}
 
 	return tokenString, nil

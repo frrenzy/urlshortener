@@ -205,9 +205,13 @@ func Test_shortenerService_DeleteByUser(t *testing.T) {
 		repository.Add(t.Context(), mockLink)
 	}
 	service := ShortenerService{
-		storage:   repository,
-		generator: mockGenerator{},
+		storage:           repository,
+		generator:         mockGenerator{},
+		deleteJobsChannel: make(chan deleteTask, 100),
+		deleteTicker:      time.NewTicker(1 * time.Second),
 	}
+	go service.RunDeleteScheduler(t.Context())
+	defer service.Close()
 
 	tests := []struct {
 		name        string
@@ -227,7 +231,7 @@ func Test_shortenerService_DeleteByUser(t *testing.T) {
 
 			require.NoError(t, gotErr, "Should not fail")
 
-			ticker := time.NewTicker(1 * time.Second)
+			ticker := time.NewTicker(5 * time.Second)
 			defer ticker.Stop()
 
 			<-ticker.C

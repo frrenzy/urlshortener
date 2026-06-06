@@ -118,6 +118,7 @@ func (s *dbStorage) GetByUser(ctx context.Context, userID int) ([]model.Link, er
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	var links []model.Link
 	for rows.Next() {
@@ -126,6 +127,9 @@ func (s *dbStorage) GetByUser(ctx context.Context, userID int) ([]model.Link, er
 			return nil, err
 		}
 		links = append(links, link)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return links, nil

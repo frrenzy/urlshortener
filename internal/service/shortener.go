@@ -5,14 +5,25 @@ import (
 	"context"
 	"errors"
 	"net/url"
+	"time"
 
 	"frrenzy/urlshortener/internal/model"
 	"frrenzy/urlshortener/internal/repository"
+	"frrenzy/urlshortener/internal/util/logger"
+
+	"go.uber.org/zap"
 )
 
+type deleteTask struct {
+	userID    int
+	shortURLs []string
+}
+
 type ShortenerService struct {
-	storage   repository.Repository
-	generator shortener
+	storage           repository.Repository
+	generator         shortener
+	deleteJobsChannel chan deleteTask
+	deleteTicker      *time.Ticker
 }
 
 type URLBatchInstance struct {
@@ -77,12 +88,53 @@ func (s ShortenerService) GetByUser(ctx context.Context, userID int) ([]model.Li
 }
 
 func (s ShortenerService) DeleteByUser(ctx context.Context, userID int, shortURLs []string) error {
-	return s.storage.DeleteByUser(ctx, userID, shortURLs)
+	s.deleteJobsChannel <- deleteTask{
+		userID:    userID,
+		shortURLs: shortURLs,
+	}
+
+	return nil
 }
 
-func NewShortenerService(repository repository.Repository) ShortenerService {
+func (s ShortenerService) runDelete(ctx context.Context) error {
+	if len(s.deleteJobsChannel) == 0 {
+		return nil
+	}
+
+	jobsByUser := make(map[int][]string)
+	for range len(s.deleteJobsChannel) {
+		task := <-s.deleteJobsChannel
+		jobsByUser[task.userID] = append(jobsByUser[task.userID], task.shortURLs...)
+	}
+
+	for userID, shortURLs := range jobsByUser {
+		err := s.storage.DeleteByUser(ctx, userID, shortURLs)
+		if err != nil {
+			logger.Log.Info("Delete task failed", zap.Int("userID", userID), zap.Strings("shortURLs", shortURLs))
+		}
+	}
+
+	return nil
+}
+
+func (s ShortenerService) RunDeleteScheduler(ctx context.Context) {
+	logger.Log.Info("Delete queue started")
+	for range s.deleteTicker.C {
+		go s.runDelete(ctx)
+	}
+}
+
+func (s ShortenerService) Close() {
+	logger.Log.Info("Delete queue started")
+	close(s.deleteJobsChannel)
+	s.deleteTicker.Stop()
+}
+
+func NewShortenerService(repository repository.Repository, deleteInterval time.Duration) ShortenerService {
 	return ShortenerService{
-		storage:   repository,
-		generator: randomGenerator{},
+		storage:           repository,
+		generator:         randomGenerator{},
+		deleteJobsChannel: make(chan deleteTask, 100),
+		deleteTicker:      time.NewTicker(deleteInterval),
 	}
 }

@@ -205,7 +205,7 @@ func Test_mapStorage_DeleteByUser(t *testing.T) {
 				if slices.Contains(test.wantDeleted, short) {
 					assert.Equal(t, true, link.DeletedFlag, "should be deleted")
 				} else {
-					assert.Equal(t, false, link.DeletedFlag, "should be deleted")
+					assert.Equal(t, false, link.DeletedFlag, "should not be deleted")
 				}
 			}
 		})
